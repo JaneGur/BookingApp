@@ -1,0 +1,10 @@
+streamlit
+supabase
+python-dotenv
+pandas
+requests
+bcrypt
+pydantic
+ruff
+mypy
+pytest

@@ -1,0 +1,221 @@
+import streamlit as st
+from core.auth import AuthManager
+from services.client_service import ClientService
+from services.booking_service import BookingService
+from utils.validators import validate_phone, validate_email
+from services.notification_service import NotificationService
+from utils.docs import render_consent_line
+
+def render_auth_forms():
+    """Отрисовка форм аутентификации"""
+    auth_manager = AuthManager()
+    client_service = ClientService()
+    booking_service = BookingService()
+    
+    # Форма входа в личный кабинет
+    if st.session_state.show_client_login:
+        render_login_form(auth_manager, client_service)
+    
+    # Форма регистрации
+    elif st.session_state.show_client_registration:
+        render_registration_form(auth_manager, client_service)
+    
+    # Форма сброса пароля
+    elif st.session_state.show_password_reset:
+        render_password_reset_form(auth_manager)
+
+def render_login_form(auth_manager, client_service):
+    """Форма входа"""
+    st.markdown("### 🔐 Вход в личный кабинет")
+    
+    with st.form("client_login_form"):
+        login_phone = st.text_input("📱 Номер телефона", placeholder="+7 (999) 123-45-67")
+        login_password = st.text_input("🔑 Пароль", type="password", placeholder="Введите ваш пароль")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            login_submit = st.form_submit_button("Войти", width='stretch')
+        with col2:
+            if st.form_submit_button("❌ Отмена", width='stretch'):
+                st.session_state.show_client_login = False
+                st.rerun()
+        
+        if login_submit:
+            if not login_phone or not login_password:
+                st.error("❌ Заполните номер телефона и пароль")
+            else:
+                if auth_manager.verify_client_password(login_phone, login_password):
+                    # Получаем информацию о клиенте
+                    profile = client_service.get_profile(login_phone)
+                    client_info = profile or client_service.get_client_info(login_phone)
+                    if client_info:
+                        st.session_state.client_logged_in = True
+                        st.session_state.client_phone = login_phone
+                        st.session_state.client_name = client_info['client_name']
+                        st.session_state.show_client_login = False
+                        # Remember me token -> query param
+                        try:
+                            token = auth_manager.issue_remember_token(login_phone)
+                            if token:
+                                st.query_params["rt"] = token
+                        except Exception:
+                            pass
+                        st.success("✅ Успешный вход!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Клиент не найден")
+                else:
+                    st.error("❌ Неверный номер телефона или пароль")
+    
+    st.markdown("---")
+    if st.button("📝 Нет аккаунта? Зарегистрируйтесь"):
+        st.session_state.show_client_login = False
+        st.session_state.show_client_registration = True
+        st.rerun()
+    
+    if st.button("🔑 Забыли пароль?"):
+        st.session_state.show_client_login = False
+        st.session_state.show_password_reset = True
+        st.rerun()
+
+def render_registration_form(auth_manager, client_service):
+    """Форма регистрации"""
+    st.markdown("### 📝 Регистрация в личном кабинете")
+    st.info("""
+    **Зачем регистрироваться?**
+    • 🔒 Безопасный доступ к вашим записям
+    • 📋 Просмотр истории консультаций  
+    • 🔔 Получение уведомлений
+    • ⏰ Управление предстоящими записями
+    """)
+    
+    with st.form("client_registration_form"):
+        st.markdown("#### 👤 Основная информация")
+        client_name = st.text_input("👤 Ваше имя *", placeholder="Иван Иванов", 
+                                  value=st.session_state.get('registration_name', ''))
+        client_phone = st.text_input("📱 Номер телефона *", placeholder="+7 (999) 123-45-67",
+                                   value=st.session_state.get('registration_phone', ''))
+        client_email = st.text_input("📧 Email (необязательно)", placeholder="example@mail.com")
+        
+        st.markdown("#### 🔐 Безопасность")
+        password = st.text_input("🔑 Пароль *", type="password", 
+                               help="Пароль должен быть не менее 6 символов")
+        confirm_password = st.text_input("🔑 Подтвердите пароль *", type="password")
+        
+        st.markdown("#### 💬 Дополнительно")
+        client_telegram = st.text_input("💬 Telegram (необязательно)", placeholder="@username")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            register_submit = st.form_submit_button("📝 Зарегистрироваться", width='stretch')
+        with col2:
+            if st.form_submit_button("❌ Отмена", width='stretch'):
+                st.session_state.show_client_registration = False
+                st.rerun()
+        
+        if register_submit:
+            # Валидация
+            if not client_name or not client_phone or not password:
+                st.error("❌ Заполните все обязательные поля")
+            elif password != confirm_password:
+                st.error("❌ Пароли не совпадают")
+            elif len(password) < 6:
+                st.error("❌ Пароль должен быть не менее 6 символов")
+            else:
+                phone_valid, phone_msg = validate_phone(client_phone)
+                if not phone_valid:
+                    st.error(phone_msg)
+                else:
+                    if client_email:
+                        email_valid, email_msg = validate_email(client_email)
+                        if not email_valid:
+                            st.error(email_msg)
+                            return
+                    
+                    # Создаем учетную запись
+                    if auth_manager.create_client_password(client_phone, password):
+                        st.success("✅ Учетная запись создана!")
+                        
+                        # Автоматически логиним пользователя
+                        if auth_manager.verify_client_password(client_phone, password):
+                            # Сохраняем профиль клиента
+                            try:
+                                client_service.upsert_profile(client_phone, client_name, client_email or '', client_telegram or '')
+                            except Exception:
+                                pass
+                            client_info = client_service.get_profile(client_phone) or client_service.get_client_info(client_phone)
+                            # Логинимся даже если информации о клиенте ещё нет в БД
+                            st.session_state.client_logged_in = True
+                            st.session_state.client_phone = client_phone
+                            st.session_state.client_name = (client_info['client_name'] if client_info else client_name)
+                            st.session_state.show_client_registration = False
+                            # Remember me token -> query param
+                            try:
+                                token = auth_manager.issue_remember_token(client_phone)
+                                if token:
+                                    st.query_params["rt"] = token
+                            except Exception:
+                                pass
+                            st.rerun()
+                    else:
+                        st.error("❌ Ошибка создания учетной записи")
+    render_consent_line()
+    
+    st.markdown("---")
+    if st.button("🔐 Уже есть аккаунт? Войдите"):
+        st.session_state.show_client_registration = False
+        st.session_state.show_client_login = True
+        st.rerun()
+
+def render_password_reset_form(auth_manager):
+    """Форма сброса пароля"""
+    st.markdown("### 🔑 Восстановление пароля")
+    
+    with st.form("password_reset_form"):
+        reset_phone = st.text_input("📱 Номер телефона", placeholder="+7 (999) 123-45-67")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            reset_submit = st.form_submit_button("🔑 Сбросить пароль", width='stretch')
+        with col2:
+            if st.form_submit_button("❌ Отмена", width='stretch'):
+                st.session_state.show_password_reset = False
+                st.rerun()
+        
+        if reset_submit:
+            if not reset_phone:
+                st.error("❌ Введите номер телефона")
+            else:
+                phone_valid, phone_msg = validate_phone(reset_phone)
+                if not phone_valid:
+                    st.error(phone_msg)
+                else:
+                    # Генерируем временный пароль
+                    temp_password = auth_manager.generate_temporary_password()
+                    
+                    # Сохраняем новый пароль
+                    if auth_manager.send_password_reset(reset_phone, temp_password):
+                        # Пытаемся отправить через Telegram
+                        notif = NotificationService()
+                        chat_id = notif.get_client_telegram_chat_id(reset_phone)
+                        if chat_id:
+                            sent = notif.bot.send_to_client(chat_id, f"🔑 Ваш временный пароль: <b>{temp_password}</b>\nПожалуйста, смените его после входа.")
+                            if sent:
+                                st.success("✅ Временный пароль отправлен в Telegram")
+                                st.info("ℹ️ Проверьте чат с ботом")
+                            else:
+                                st.warning("⚠️ Не удалось отправить в Telegram. Пароль показан ниже:")
+                                st.success(f"🔑 Временный пароль: **{temp_password}**")
+                        else:
+                            # Фоллбек: показываем пароль на экране
+                            st.success(f"🔑 Временный пароль: **{temp_password}**")
+                            st.info("⚠️ Сохраните его и смените после входа!")
+                    else:
+                        st.error("❌ Ошибка сброса пароля")
+    render_consent_line()
+    
+    st.markdown("---")
+    if st.button("🔐 Войти в аккаунт"):
+        st.session_state.show_password_reset = False
+        st.session_state.show_client_login = True
+        st.rerun()
