@@ -177,13 +177,8 @@ def render_step_user_data():
             key="step2_email"
         )
         
-        client_chat_id = st.text_input(
-            "💬 ID Telegram для уведомлений", 
-            placeholder="123456789 (опционально)",
-            value=form_data.get('chat_id', ''),
-            help="Чтобы получать уведомления о записи и напоминания",
-            key="step2_chat"
-        )
+        # Убираем поле ввода Telegram ID — большинству пользователей он неизвестен
+        st.info("Если хотите получать уведомления в Telegram, подключите бота позже в личном кабинете в разделе 'Уведомления' — там есть инструкция, как найти и связать ваш Telegram.")
     
     with col_b:
         client_phone = st.text_input(
@@ -224,7 +219,6 @@ def render_step_user_data():
             client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
             client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
             client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
-            client_chat_id_clean = client_chat_id.strip() if isinstance(client_chat_id, str) else client_chat_id
             notes_clean = notes.strip() if isinstance(notes, str) else notes
 
             # Валидация
@@ -241,13 +235,12 @@ def render_step_user_data():
                             st.error(email_msg)
                             return
 
-                    # Сохраняем данные
+                    # Сохраняем данные (chat_id для гостей не собираем — подключение через личный кабинет)
                     st.session_state.booking_form_data.update({
                         'name': client_name_clean,
                         'phone': client_phone_clean,
                         'email': client_email_clean,
                         'telegram': client_telegram_clean,
-                        'chat_id': client_chat_id_clean,
                         'notes': notes_clean
                     })
 
