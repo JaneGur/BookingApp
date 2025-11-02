@@ -11,12 +11,26 @@ def render_time_slots(available_slots: List[str], key_prefix: str = "slot") -> O
     st.markdown("#### 🕐 Выберите время")
     st.info("💡 Доступные для записи временные слоты")
     
+    # Инициализация selected_time в session_state если его нет
+    if 'selected_time' not in st.session_state:
+        st.session_state.selected_time = None
+    
     cols = st.columns(4)
     for idx, time_slot in enumerate(available_slots):
         with cols[idx % 4]:
-            if st.button(f"🕐 {time_slot}", key=f"{key_prefix}_{time_slot}", 
-                        width='stretch', type="primary"):
-                st.session_state.selected_time = time_slot
-                st.rerun()
+            # Определяем тип кнопки в зависимости от выбранного времени
+            button_type = "primary" if st.session_state.selected_time != time_slot else "secondary"
+            if st.button(
+                f"🕐 {time_slot}", 
+                key=f"{key_prefix}_{time_slot}", 
+                width='stretch',
+                type=button_type,
+                use_container_width=True
+            ):
+                # Если нажали на уже выбранное время - сбрасываем выбор
+                if st.session_state.selected_time == time_slot:
+                    st.session_state.selected_time = None
+                else:
+                    st.session_state.selected_time = time_slot
     
-    return st.session_state.get('selected_time')
+    return st.session_state.selected_time
