@@ -8,6 +8,7 @@ from utils.validators import normalize_phone, hash_password
 from utils.datetime_helpers import now_msk, combine_msk
 
 class BookingService:
+    
     def __init__(self):
         # Разделяем клиентов: чтение через anon, запись через service role
         self.sb_read = db_manager.get_client()

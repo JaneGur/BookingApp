@@ -43,18 +43,73 @@ def _pop_query_param(key: str):
             pass
 
 def setup_sidebar():
-    """Настройка боковой панели"""
+    """Оптимизированная боковая панель - загружаем только необходимое"""
+    
+    # Кэшируем состояние, чтобы не запрашивать БД каждый раз
+    @st.cache_data(ttl=30, show_spinner=False)
+    def get_sidebar_stats():
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService()
+        return analytics.get_stats()
+    
     with st.sidebar:
         st.markdown("# 🌿 Навигация")
         
         if st.session_state.client_logged_in:
             setup_client_sidebar()
         elif st.session_state.admin_logged_in:
-            setup_admin_sidebar()
+            # Загружаем статистику только для админа
+            st.markdown("### 📊 Статистика")
+            total, upcoming, this_month, this_week = get_sidebar_stats()
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("📋 Всего", total)
+                st.metric("📅 За месяц", this_month)
+            with col2:
+                st.metric("⏰ Предстоящих", upcoming)
+                st.metric("📆 За неделю", this_week)
+            
+            st.divider()
+            st.markdown("### 👩‍💼 Администратор")
+            st.success("✅ Вы зашли как администратор")
+            
+            if st.button("🚪 Выйти", width='stretch'):
+                admin_logout_fast()
         else:
             setup_public_sidebar()
         
+        # Админская секция внизу
         setup_admin_section()
+
+
+# ========== 2. БЫСТРЫЙ LOGOUT БЕЗ ТЯЖЕЛЫХ ОПЕРАЦИЙ ==========
+
+def admin_logout_fast():
+    """Быстрый выход без лишних операций"""
+    from core.session_state import admin_logout
+    
+    # Не делаем тяжелые операции с БД при выходе
+    try:
+        st.query_params.clear()
+    except:
+        pass
+    
+    admin_logout()
+    st.rerun()
+
+def client_logout_fast():
+    """Быстрый выход клиента"""
+    from core.session_state import client_logout
+    
+    try:
+        st.query_params.clear()
+    except:
+        pass
+    
+    client_logout()
+    st.rerun()
+
 
 def setup_client_sidebar():
     """Боковая панель для клиента"""
@@ -186,48 +241,84 @@ def setup_admin_section():
                 st.rerun()
 
 def main():
-    """Главная функция приложения"""
-    # Инициализация приложения
+    """Оптимизированная главная функция"""
+    # Инициализация
     st.set_page_config(**config.PAGE_CONFIG)
     load_custom_css()
     
-    # Инициализация базы данных
-    if db_manager.get_client() is None:
+    # Проверка БД (кэшировано)
+    if not db_check_cached():
         st.error("❌ Не удалось подключиться к базе данных")
         return
     
-    # Инициализация состояния
+    # Инициализация состояния (один раз)
     init_session_state()
     
-    # Автовход по remember-me токену из URL (если не авторизованы)
-    if not (st.session_state.client_logged_in or st.session_state.admin_logged_in):
-        try:
-            at = _get_query_param('at')
-            if at:
-                auth = AuthManager()
-                if auth.verify_admin_token(at):
-                    from core.session_state import admin_login
-                    admin_login()
-        except Exception:
-            pass
-        try:
-            token = _get_query_param('rt')
-            if token:
-                auth = AuthManager()
-                phone_norm = auth.verify_remember_token(token)
-                if phone_norm:
-                    # Получаем имя клиента и входим
-                    from services.client_service import ClientService
-                    cs = ClientService()
-                    info = cs.get_client_info(phone_norm)
-                    st.session_state.client_logged_in = True
-                    st.session_state.client_phone = phone_norm
-                    st.session_state.client_name = (info['client_name'] if info else st.session_state.get('client_name', ''))
-                    # Откроем кабинет на Главной
-                    st.session_state.current_tab = "🏠 Главная"
-                    st.query_params["rt"] = token
-        except Exception:
-            pass
+    # КРИТИЧНО: Автовход только ОДИН раз за сессию
+    if '_auto_login_checked' not in st.session_state:
+        st.session_state._auto_login_checked = True
+        check_auto_login()  # Только один раз!
+    
+    # Боковая панель
+    setup_sidebar()
+    
+    # Формы
+    if any([
+        st.session_state.show_client_login,
+        st.session_state.show_client_registration,
+        st.session_state.show_password_reset
+    ]):
+        render_auth_forms()
+        return
+    
+    # Маршрутизация
+    if st.session_state.admin_logged_in:
+        render_admin_panel()
+    elif st.session_state.client_logged_in:
+        render_client_cabinet()
+    else:
+        render_public_booking()
+    
+    render_footer()
+
+@st.cache_resource
+def db_check_cached():
+    """Кэшированная проверка БД"""
+    return db_manager.get_client() is not None
+
+def check_auto_login():
+    """Проверка токенов только один раз"""
+    if st.session_state.client_logged_in or st.session_state.admin_logged_in:
+        return
+    
+    # Админ токен
+    try:
+        at = st.query_params.get('at')
+        if at:
+            auth = AuthManager()
+            if auth.verify_admin_token(at):
+                from core.session_state import admin_login
+                admin_login()
+                return
+    except:
+        pass
+    
+    # Клиент токен
+    try:
+        rt = st.query_params.get('rt')
+        if rt:
+            auth = AuthManager()
+            phone_norm = auth.verify_remember_token(rt)
+            if phone_norm:
+                from services.client_service import ClientService
+                cs = ClientService()
+                info = cs.get_profile(phone_norm)
+                
+                st.session_state.client_logged_in = True
+                st.session_state.client_phone = phone_norm
+                st.session_state.client_name = (info['client_name'] if info else '')
+    except:
+        pass
     
     # Инициализация таблицы аутентификации
     if not st.session_state.get('auth_table_initialized'):

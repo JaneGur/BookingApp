@@ -24,17 +24,17 @@ def render_auth_forms():
     elif st.session_state.show_password_reset:
         render_password_reset_form(auth_manager)
 
-def render_login_form(auth_manager, client_service):
-    """Форма входа"""
+def render_login_form_optimized(auth_manager, client_service):
+    """Оптимизированная форма входа - минимум запросов к БД"""
     st.markdown("### 🔐 Вход в личный кабинет")
     
-    with st.form("client_login_form"):
+    with st.form("client_login_form", clear_on_submit=False):
         login_phone = st.text_input("📱 Номер телефона", placeholder="+7 (999) 123-45-67")
         login_password = st.text_input("🔑 Пароль", type="password", placeholder="Введите ваш пароль")
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            login_submit = st.form_submit_button("Войти", width='stretch')
+            login_submit = st.form_submit_button("Войти", width='stretch', type="primary")
         with col2:
             if st.form_submit_button("❌ Отмена", width='stretch'):
                 st.session_state.show_client_login = False
@@ -44,40 +44,35 @@ def render_login_form(auth_manager, client_service):
             if not login_phone or not login_password:
                 st.error("❌ Заполните номер телефона и пароль")
             else:
-                if auth_manager.verify_client_password(login_phone, login_password):
-                    # Получаем информацию о клиенте
-                    profile = client_service.get_profile(login_phone)
-                    client_info = profile or client_service.get_client_info(login_phone)
-                    if client_info:
-                        st.session_state.client_logged_in = True
-                        st.session_state.client_phone = login_phone
-                        st.session_state.client_name = client_info['client_name']
-                        st.session_state.show_client_login = False
-                        # Remember me token -> query param
-                        try:
-                            token = auth_manager.issue_remember_token(login_phone)
-                            if token:
-                                st.query_params["rt"] = token
-                        except Exception:
-                            pass
-                        st.success("✅ Успешный вход!")
-                        st.rerun()
+                # Показываем spinner только на время проверки
+                with st.spinner("🔐 Проверка..."):
+                    if auth_manager.verify_client_password(login_phone, login_password):
+                        # Параллельно получаем информацию (одним запросом)
+                        profile = client_service.get_profile(login_phone)
+                        
+                        if profile:
+                            # Быстрая авторизация
+                            st.session_state.client_logged_in = True
+                            st.session_state.client_phone = login_phone
+                            st.session_state.client_name = profile['client_name']
+                            st.session_state.show_client_login = False
+                            
+                            # Remember token (быстро, не блокирует UI)
+                            try:
+                                token = auth_manager.issue_remember_token(login_phone)
+                                if token:
+                                    st.query_params["rt"] = token
+                            except:
+                                pass
+                            
+                            st.success("✅ Успешный вход!")
+                            # Минимальная задержка для читаемости
+                            time.sleep(0.3)
+                            st.rerun()
+                        else:
+                            st.error("❌ Клиент не найден")
                     else:
-                        st.error("❌ Клиент не найден")
-                else:
-                    st.error("❌ Неверный номер телефона или пароль")
-    
-    st.markdown("---")
-    if st.button("📝 Нет аккаунта? Зарегистрируйтесь"):
-        st.session_state.show_client_login = False
-        st.session_state.show_client_registration = True
-        st.rerun()
-    
-    if st.button("🔑 Забыли пароль?"):
-        st.session_state.show_client_login = False
-        st.session_state.show_password_reset = True
-        st.rerun()
-
+                        st.error("❌ Неверный номер телефона или пароль")
 def render_registration_form(auth_manager, client_service):
     """Форма регистрации"""
     st.markdown("### 📝 Регистрация в личном кабинете")
