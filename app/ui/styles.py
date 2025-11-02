@@ -75,9 +75,9 @@ def load_custom_css():
             padding: 1.5rem 0;
         }
         
-        /* ===== УЛУЧШЕННЫЕ КНОПКИ ===== */
-        
+    /* ===== КНОПКИ С СОВРЕМЕННЫМ ЭФФЕКТОМ ===== */
         .stButton>button {
+            width: 100%;
             border-radius: 12px;
             height: 3.2em;
             background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%);
@@ -98,17 +98,20 @@ def load_custom_css():
             transform: scale(0.98);
         }
         
-        /* Вторичные кнопки */
+        /* Вторичные кнопки (для хедера аутентификации) */
         .stButton>button[kind="secondary"] {
-            background: rgba(136, 200, 188, 0.1);
-            color: #3d6f63;
-            border: 1px solid rgba(136, 200, 188, 0.3);
+            background: rgba(255, 255, 255, 0.95);
+            color: #225c52;
+            border: 2px solid rgba(136, 200, 188, 0.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
         }
         
         .stButton>button[kind="secondary"]:hover {
-            background: rgba(136, 200, 188, 0.2);
-            border-color: rgba(136, 200, 188, 0.5);
+            background: rgba(136, 200, 188, 0.1);
+            border-color: #88c8bc;
+            color: #225c52;
         }
+        
         
         /* ===== КАРТОЧКИ ДЕЙСТВИЙ ===== */
         
@@ -292,10 +295,15 @@ def load_custom_css():
         }
         
         /* ===== САЙДБАР ===== */
-        [data-testid="stSidebar"] {
+         [data-testid="stSidebar"] {
             background: rgba(255, 255, 255, 0.98);
             border-right: 1px solid rgba(0, 0, 0, 0.06);
         }
+        
+        /* Скрываем пустой сайдбар на публичной странице */
+        [data-testid="stSidebar"]:has(> div > div:empty) {
+            display: none;
+        
 
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 

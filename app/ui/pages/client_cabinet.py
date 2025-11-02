@@ -547,8 +547,8 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                                 st.session_state._pending_payment_ctx = None
                                 st.rerun()
         
-        with col2:
-            render_info_panel()
+        # with col2:
+        #     render_info_panel()
 
 def render_booking_history(booking_service):
     """Отрисовка истории записей"""
