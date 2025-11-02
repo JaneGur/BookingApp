@@ -1,10 +1,10 @@
 import streamlit as st
 
 def load_custom_css():
-    """Элегантные премиум стили с современным дизайном"""
+    """Элегантные премиум стили с улучшенной навигацией"""
     st.markdown("""
         <style>
-        /* ===== ШРИФТЫ ===== */
+        /* ===== СУЩЕСТВУЮЩИЕ СТИЛИ ===== */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
         html, body, [class^="css"] {
@@ -13,7 +13,6 @@ def load_custom_css():
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ===== МЯГКИЙ ГРАДИЕНТНЫЙ ФОН ===== */
         .main {
             padding: 0rem 1rem;
             background: 
@@ -22,9 +21,63 @@ def load_custom_css():
                 linear-gradient(135deg, #f8fbfa 0%, #f2f7f5 100%);
         }
         
-        /* ===== КНОПКИ С СОВРЕМЕННЫМ ЭФФЕКТОМ ===== */
+        /* ===== НОВЫЕ СТИЛИ ДЛЯ УЛУЧШЕННОЙ НАВИГАЦИИ ===== */
+        
+        /* Контейнер навигации */
+        .stTabs {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(136, 200, 188, 0.15);
+        }
+        
+        /* Вкладки навигации */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+            background: transparent;
+            border-bottom: none;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            height: auto;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #5a7a6f;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        
+        .stTabs [data-baseweb="tab"]:hover {
+            background: rgba(136, 200, 188, 0.08);
+            border-color: rgba(136, 200, 188, 0.2);
+            color: #3d6f63;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%) !important;
+            color: white !important;
+            border-color: transparent !important;
+            box-shadow: 0 2px 8px rgba(136, 200, 188, 0.3);
+        }
+        
+        /* Индикатор активной вкладки */
+        .stTabs [data-baseweb="tab-border"] {
+            display: none;
+        }
+        
+        /* Контент вкладок */
+        .stTabs [data-baseweb="tab-panel"] {
+            padding: 1.5rem 0;
+        }
+        
+        /* ===== УЛУЧШЕННЫЕ КНОПКИ ===== */
+        
         .stButton>button {
-            width: 100%;
             border-radius: 12px;
             height: 3.2em;
             background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%);
@@ -45,7 +98,63 @@ def load_custom_css():
             transform: scale(0.98);
         }
         
-        /* ===== ЧИСТЫЕ КАРТОЧКИ ===== */
+        /* Вторичные кнопки */
+        .stButton>button[kind="secondary"] {
+            background: rgba(136, 200, 188, 0.1);
+            color: #3d6f63;
+            border: 1px solid rgba(136, 200, 188, 0.3);
+        }
+        
+        .stButton>button[kind="secondary"]:hover {
+            background: rgba(136, 200, 188, 0.2);
+            border-color: rgba(136, 200, 188, 0.5);
+        }
+        
+        /* ===== КАРТОЧКИ ДЕЙСТВИЙ ===== */
+        
+        .action-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(136, 200, 188, 0.15);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border-color: rgba(136, 200, 188, 0.3);
+        }
+        
+        /* ===== МЕТКИ СТАТУСА ===== */
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .status-badge.success {
+            background: rgba(136, 200, 188, 0.2);
+            color: #2d5a4f;
+        }
+        
+        .status-badge.warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #856404;
+        }
+        
+        .status-badge.danger {
+            background: rgba(220, 53, 69, 0.2);
+            color: #721c24;
+        }
+        
+        /* ===== УЛУЧШЕННЫЕ КАРТОЧКИ ===== */
+        
         .booking-card {
             padding: 2rem;
             border-radius: 16px;
@@ -62,26 +171,18 @@ def load_custom_css():
             border-color: rgba(136, 200, 188, 0.25);
         }
         
-        /* ===== ИНФОРМАЦИОННЫЕ БЛОКИ ===== */
-        .info-box {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-            border: 1px solid rgba(136, 200, 188, 0.15);
-            transition: all 0.2s ease;
+        .booking-card h3, .booking-card h4 {
+            margin-top: 0;
+            color: #2d5a4f;
         }
         
-        .info-box:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-        }
+        /* ===== WELCOME HEADER ===== */
         
-        /* ===== ПРИВЕТСТВЕННЫЙ ХЕДЕР ===== */
         .welcome-header {
             background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%);
             color: white;
-            padding: 3rem 2.5rem;
-            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            border-radius: 16px;
             margin-bottom: 2rem;
             text-align: center;
             box-shadow: 0 8px 24px rgba(136, 200, 188, 0.25);
@@ -92,29 +193,102 @@ def load_custom_css():
             font-weight: 700;
             letter-spacing: -0.02em;
             margin-bottom: 0.5rem;
+            font-size: 2rem;
         }
+        
         .welcome-header p { 
             opacity: 0.95;
             font-weight: 400;
+            font-size: 1.1rem;
         }
         
-        /* ===== TELEGRAM СТАТУСЫ ===== */
-        .telegram-connected {
-            background: linear-gradient(135deg, rgba(227, 242, 253, 0.95) 0%, rgba(187, 222, 251, 0.95) 100%);
-            border-left: 3px solid #0088cc;
-            padding: 1.5rem;
+        /* ===== МЕТРИКИ ===== */
+        
+        [data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 12px;
-            margin: 1rem 0;
-            box-shadow: 0 2px 8px rgba(0, 136, 204, 0.12);
+            padding: 1.2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(136, 200, 188, 0.15);
+            transition: all 0.2s ease;
         }
         
-        .telegram-disconnected {
-            background: linear-gradient(135deg, rgba(255, 243, 224, 0.95) 0%, rgba(255, 224, 178, 0.95) 100%);
-            border-left: 3px solid #ff9800;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin: 1rem 0;
-            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.12);
+        [data-testid="stMetric"]:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        [data-testid="stMetricValue"] { 
+            color: #225c52;
+            font-weight: 700;
+        }
+        
+        /* ===== ЗАГОЛОВКИ РАЗДЕЛОВ ===== */
+        
+        h4 {
+            color: #2d5a4f;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* ===== РАЗДЕЛИТЕЛИ ===== */
+        
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(136, 200, 188, 0.3), transparent);
+            margin: 2rem 0;
+        }
+        
+        /* ===== АНИМАЦИИ ===== */
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .booking-card, .action-card {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        /* ===== RESPONSIVE ===== */
+        
+        @media (max-width: 768px) {
+            .welcome-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .stTabs [data-baseweb="tab"] {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* ===== SCROLLBAR ===== */
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(240, 242, 245, 0.5);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #88c8bc, #6ba292);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6ba292;
         }
         
         /* ===== САЙДБАР ===== */
@@ -129,35 +303,6 @@ def load_custom_css():
         [data-testid="stSidebar"] h4 { 
             letter-spacing: -0.01em;
             font-weight: 600;
-        }
-
-        /* ===== НАВИГАЦИОННЫЕ ВКЛАДКИ ===== */
-        .stTabs [role="tablist"] button {
-            border: none;
-            background: transparent;
-            color: #5a7a6f;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-        
-        .stTabs [role="tablist"] button:hover {
-            color: #3d6f63;
-        }
-        
-        .stTabs [role="tablist"] button[aria-selected="true"] {
-            color: #225c52;
-            position: relative;
-        }
-        
-        .stTabs [role="tablist"] button[aria-selected="true"]::after {
-            content: "";
-            position: absolute;
-            left: 10%;
-            right: 10%;
-            bottom: -8px;
-            height: 3px;
-            border-radius: 3px;
-            background: linear-gradient(90deg, #88c8bc, #6ba292);
         }
 
         /* ===== INPUTS С ЧИСТЫМ ДИЗАЙНОМ ===== */
@@ -178,43 +323,37 @@ def load_custom_css():
             box-shadow: 0 0 0 3px rgba(136, 200, 188, 0.1);
         }
 
-        /* ===== МЕТРИКИ ===== */
-        [data-testid="stMetric"] {
-            background: rgba(255, 255, 255, 0.95);
+        /* ===== TELEGRAM СТАТУСЫ ===== */
+        .telegram-connected {
+            background: linear-gradient(135deg, rgba(227, 242, 253, 0.95) 0%, rgba(187, 222, 251, 0.95) 100%);
+            border-left: 3px solid #0088cc;
+            padding: 1.5rem;
             border-radius: 12px;
-            padding: 1.2rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(0, 136, 204, 0.12);
+        }
+        
+        .telegram-disconnected {
+            background: linear-gradient(135deg, rgba(255, 243, 224, 0.95) 0%, rgba(255, 224, 178, 0.95) 100%);
+            border-left: 3px solid #ff9800;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.12);
+        }
+        
+        /* ===== ИНФОРМАЦИОННЫЕ БЛОКИ ===== */
+        .info-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
             border: 1px solid rgba(136, 200, 188, 0.15);
             transition: all 0.2s ease;
         }
         
-        [data-testid="stMetric"]:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-        
-        [data-testid="stMetricValue"] { 
-            color: #225c52;
-            font-weight: 700;
-        }
-        
-        /* ===== SCROLLBAR ===== */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(240, 242, 245, 0.5);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #88c8bc, #6ba292);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6ba292;
+        .info-box:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
         }
         
         /* ===== АЛЕРТЫ ===== */
