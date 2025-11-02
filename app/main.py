@@ -54,78 +54,76 @@ def render_top_bar():
     with col2:
         # Для клиента
         if st.session_state.client_logged_in:
-            st.markdown(f"**👤 {st.session_state.client_name}**")
-            
-            # Статус Telegram
-            from services.notification_service import NotificationService
-            notification_service = NotificationService()
-            telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
-            
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if telegram_connected:
-                    st.success("🔔 Уведомления")
-                else:
-                    st.warning("🔕 Без уведомлений")
-            
-            with col_b:
-                if st.button("🚪 Выйти", use_container_width=True, key="client_logout_top"):
-                    try:
-                        auth = AuthManager()
-                        if st.session_state.client_phone:
-                            auth.revoke_tokens(st.session_state.client_phone)
-                        st.query_params.clear()
-                    except Exception:
-                        pass
-                    from core.session_state import client_logout
-                    client_logout()
-                    st.rerun()
-        
-        # Для администратора
+            setup_client_sidebar()
         elif st.session_state.admin_logged_in:
-            st.success("**👩‍💼 Здравствуйте, Анна**")
-            
-            # Быстрая статистика
-            from services.analytics_service import AnalyticsService
-            analytics_service = AnalyticsService()
-            total, upcoming, this_month, this_week = analytics_service.get_stats()
-            
-            col_stat1, col_stat2, col_stat3 = st.columns(3)
-            with col_stat1:
-                st.metric("Всего", total, label_visibility="collapsed")
-                st.caption("📋 Всего")
-            with col_stat2:
-                st.metric("Предстоящих", upcoming, label_visibility="collapsed")
-                st.caption("⏰ Предстоящих")
-            with col_stat3:
-                if st.button("🚪 Выйти", use_container_width=True, key="admin_logout_top"):
-                    from core.session_state import admin_logout
-                    try:
-                        auth = AuthManager()
-                        auth.revoke_admin_tokens()
-                        _pop_query_param('at')
-                    except Exception:
-                        pass
-                    admin_logout()
-                    st.rerun()
+            setup_admin_sidebar()
         
-        # Для гостей
-        else:
-            col_auth1, col_auth2 = st.columns(2)
-            with col_auth1:
-                if st.button("🔐 Войти", use_container_width=True, key="guest_login_top"):
-                    st.session_state.show_client_login = True
-                    st.session_state.show_client_registration = False
-                    st.session_state.show_password_reset = False
-                    st.rerun()
-            
-            with col_auth2:
-                if st.button("📝 Регистрация", use_container_width=True, key="guest_register_top"):
-                    st.session_state.show_client_login = False
-                    st.session_state.show_client_registration = True
-                    st.session_state.show_password_reset = False
-                    st.rerun()
+        # Админ-секция всегда внизу (кроме случая когда админ уже залогинен)
+        if not st.session_state.admin_logged_in:
+            setup_admin_section()
+
+def setup_client_sidebar():
+    """Боковая панель для клиента"""
+    if st.session_state.client_name:
+        st.markdown(f"### 👋 {st.session_state.client_name}!")
+
+    # Статус Telegram
+    from services.notification_service import NotificationService
+    notification_service = NotificationService()
+    telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
+    if telegram_connected:
+        st.success("🔔 Уведомления подключены")
+    else:
+        st.warning("🔕 Нет уведомлений")
+
+    st.markdown("---")
+    if st.button("🚪 Выйти", width='stretch'):
+        # Отзываем remember-me токены и очищаем query-параметры
+        try:
+            auth = AuthManager()
+            if st.session_state.client_phone:
+                auth.revoke_tokens(st.session_state.client_phone)
+            st.query_params.clear()
+        except Exception:
+            pass
+        from core.session_state import client_logout
+        client_logout()
+        st.rerun()
+
+def setup_admin_sidebar():
+    """Боковая панель для администратора"""
+    st.markdown("### 📊 Статистика")
+    from services.analytics_service import AnalyticsService
+    analytics_service = AnalyticsService()
+    total, upcoming, this_month, this_week = analytics_service.get_stats()
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        st.metric("📋 Всего", total)
+    with col_m2:
+        st.metric("⏰ Предстоящих", upcoming)
+    col_m3, col_m4 = st.columns(2)
+    with col_m3:
+        st.metric("📅 За месяц", this_month)
+    with col_m4:
+        st.metric("📆 За неделю", this_week)
     
+    st.divider()
+    st.markdown("### 👩‍💼 Администратор")
+    st.success("✅ Вы зашли как администратор")
+    
+    if st.button("🚪 Выйти", width='stretch'):
+        from core.session_state import admin_logout
+        try:
+            auth = AuthManager()
+            auth.revoke_admin_tokens()
+            _pop_query_param('at')
+        except Exception:
+            pass
+        admin_logout()
+        st.rerun()
+
+def setup_admin_section():
+    """Раздел администратора в сайдбаре"""
     st.markdown("---")
 
 def render_admin_login_modal():
