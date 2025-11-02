@@ -49,7 +49,7 @@ def render_top_bar():
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown("## 🌿 Система записи")
+        st.markdown("## 🌿 Запись на онлайн-консультацию")
     
     with col2:
         # Для клиента
@@ -83,7 +83,7 @@ def render_top_bar():
         
         # Для администратора
         elif st.session_state.admin_logged_in:
-            st.success("**👩‍💼 Администратор**")
+            st.success("**👩‍💼 Здравствуйте, Анна**")
             
             # Быстрая статистика
             from services.analytics_service import AnalyticsService
