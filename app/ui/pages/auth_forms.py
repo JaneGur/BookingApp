@@ -45,22 +45,24 @@ def render_login_form(auth_manager, client_service):
             if not login_phone or not login_password:
                 st.error("❌ Заполните номер телефона и пароль")
             else:
+                # Обрезаем случайные пробелы у номера
+                login_phone_clean = login_phone.strip() if isinstance(login_phone, str) else login_phone
                 # Показываем spinner только на время проверки
                 with st.spinner("🔐 Проверка..."):
-                    if auth_manager.verify_client_password(login_phone, login_password):
+                    if auth_manager.verify_client_password(login_phone_clean, login_password):
                         # Параллельно получаем информацию (одним запросом)
-                        profile = client_service.get_profile(login_phone)
+                        profile = client_service.get_profile(login_phone_clean)
                         
                         if profile:
                             # Быстрая авторизация
                             st.session_state.client_logged_in = True
-                            st.session_state.client_phone = login_phone
+                            st.session_state.client_phone = login_phone_clean
                             st.session_state.client_name = profile['client_name']
                             st.session_state.show_client_login = False
                             
                             # Remember token (быстро, не блокирует UI)
                             try:
-                                token = auth_manager.issue_remember_token(login_phone)
+                                token = auth_manager.issue_remember_token(login_phone_clean)
                                 if token:
                                     st.query_params["rt"] = token
                             except:
@@ -110,44 +112,50 @@ def render_registration_form(auth_manager, client_service):
                 st.rerun()
         
         if register_submit:
+            # Обрезаем пробелы у вводимых полей (кроме пароля)
+            client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
+            client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
+            client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
+            client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
+
             # Валидация
-            if not client_name or not client_phone or not password:
+            if not client_name_clean or not client_phone_clean or not password:
                 st.error("❌ Заполните все обязательные поля")
             elif password != confirm_password:
                 st.error("❌ Пароли не совпадают")
             elif len(password) < 6:
                 st.error("❌ Пароль должен быть не менее 6 символов")
             else:
-                phone_valid, phone_msg = validate_phone(client_phone)
+                phone_valid, phone_msg = validate_phone(client_phone_clean)
                 if not phone_valid:
                     st.error(phone_msg)
                 else:
-                    if client_email:
-                        email_valid, email_msg = validate_email(client_email)
+                    if client_email_clean:
+                        email_valid, email_msg = validate_email(client_email_clean)
                         if not email_valid:
                             st.error(email_msg)
                             return
-                    
+
                     # Создаем учетную запись
-                    if auth_manager.create_client_password(client_phone, password):
+                    if auth_manager.create_client_password(client_phone_clean, password):
                         st.success("✅ Учетная запись создана!")
                         
                         # Автоматически логиним пользователя
-                        if auth_manager.verify_client_password(client_phone, password):
+                        if auth_manager.verify_client_password(client_phone_clean, password):
                             # Сохраняем профиль клиента
                             try:
-                                client_service.upsert_profile(client_phone, client_name, client_email or '', client_telegram or '')
+                                client_service.upsert_profile(client_phone_clean, client_name_clean, client_email_clean or '', client_telegram_clean or '')
                             except Exception:
                                 pass
-                            client_info = client_service.get_profile(client_phone) or client_service.get_client_info(client_phone)
+                            client_info = client_service.get_profile(client_phone_clean) or client_service.get_client_info(client_phone_clean)
                             # Логинимся даже если информации о клиенте ещё нет в БД
                             st.session_state.client_logged_in = True
-                            st.session_state.client_phone = client_phone
-                            st.session_state.client_name = (client_info['client_name'] if client_info else client_name)
+                            st.session_state.client_phone = client_phone_clean
+                            st.session_state.client_name = (client_info['client_name'] if client_info else client_name_clean)
                             st.session_state.show_client_registration = False
                             # Remember me token -> query param
                             try:
-                                token = auth_manager.issue_remember_token(client_phone)
+                                token = auth_manager.issue_remember_token(client_phone_clean)
                                 if token:
                                     st.query_params["rt"] = token
                             except Exception:
@@ -182,7 +190,8 @@ def render_password_reset_form(auth_manager):
             if not reset_phone:
                 st.error("❌ Введите номер телефона")
             else:
-                phone_valid, phone_msg = validate_phone(reset_phone)
+                reset_phone_clean = reset_phone.strip() if isinstance(reset_phone, str) else reset_phone
+                phone_valid, phone_msg = validate_phone(reset_phone_clean)
                 if not phone_valid:
                     st.error(phone_msg)
                 else:
@@ -190,7 +199,7 @@ def render_password_reset_form(auth_manager):
                     temp_password = auth_manager.generate_temporary_password()
                     
                     # Сохраняем новый пароль
-                    if auth_manager.send_password_reset(reset_phone, temp_password):
+                    if auth_manager.send_password_reset(reset_phone_clean, temp_password):
                         # Пытаемся отправить через Telegram
                         notif = NotificationService()
                         chat_id = notif.get_client_telegram_chat_id(reset_phone)

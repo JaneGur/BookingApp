@@ -356,18 +356,22 @@ def render_profile_section(client_service, client_info):
             changes_made = False
             messages = []
             
-            # Валидация email
-            if new_email:
-                email_valid, email_msg = validate_email(new_email)
+            # Обрезаем пробелы и валидация email
+            new_name_clean = new_name.strip() if isinstance(new_name, str) else new_name
+            new_email_clean = new_email.strip() if isinstance(new_email, str) else new_email
+            new_telegram_clean = new_telegram.strip() if isinstance(new_telegram, str) else new_telegram
+
+            if new_email_clean:
+                email_valid, email_msg = validate_email(new_email_clean)
                 if not email_valid:
                     st.error(email_msg)
                     return
             # Сохраняем профиль в client_profiles (мягко, если таблицы нет)
             saved = client_service.upsert_profile(
                 st.session_state.client_phone,
-                new_name.strip(),
-                new_email.strip(),
-                new_telegram.strip(),
+                new_name_clean,
+                new_email_clean,
+                new_telegram_clean,
             )
             if saved:
                 messages.append("✅ Профиль сохранён")

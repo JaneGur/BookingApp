@@ -219,30 +219,38 @@ def render_step_user_data():
     
     with col_nav2:
         if st.button("Далее ➡️", use_container_width=True, type="primary"):
+            # Обрезаем случайные пробелы у вводимых полей (не трогаем пароли)
+            client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
+            client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
+            client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
+            client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
+            client_chat_id_clean = client_chat_id.strip() if isinstance(client_chat_id, str) else client_chat_id
+            notes_clean = notes.strip() if isinstance(notes, str) else notes
+
             # Валидация
-            if not client_name or not client_phone:
+            if not client_name_clean or not client_phone_clean:
                 st.error("❌ Заполните имя и телефон")
             else:
-                phone_valid, phone_msg = validate_phone(client_phone)
+                phone_valid, phone_msg = validate_phone(client_phone_clean)
                 if not phone_valid:
                     st.error(phone_msg)
                 else:
-                    if client_email:
-                        email_valid, email_msg = validate_email(client_email)
+                    if client_email_clean:
+                        email_valid, email_msg = validate_email(client_email_clean)
                         if not email_valid:
                             st.error(email_msg)
                             return
-                    
+
                     # Сохраняем данные
                     st.session_state.booking_form_data.update({
-                        'name': client_name,
-                        'phone': client_phone,
-                        'email': client_email,
-                        'telegram': client_telegram,
-                        'chat_id': client_chat_id,
-                        'notes': notes
+                        'name': client_name_clean,
+                        'phone': client_phone_clean,
+                        'email': client_email_clean,
+                        'telegram': client_telegram_clean,
+                        'chat_id': client_chat_id_clean,
+                        'notes': notes_clean
                     })
-                    
+
                     st.session_state.booking_step = 3
                     st.rerun()
 
@@ -410,24 +418,26 @@ def render_login_tab(form_data, client_service):
             if not login_phone or not login_password:
                 st.error("❌ Заполните все поля")
             else:
+                # Обрезаем пробелы у номера
+                login_phone_clean = login_phone.strip() if isinstance(login_phone, str) else login_phone
                 from core.auth import AuthManager
                 auth_manager = AuthManager()
                 
-                if auth_manager.verify_client_password(login_phone, login_password):
+                if auth_manager.verify_client_password(login_phone_clean, login_password):
                     # Получаем информацию о клиенте
-                    profile = client_service.get_profile(login_phone)
-                    client_info = profile or client_service.get_client_info(login_phone)
+                    profile = client_service.get_profile(login_phone_clean)
+                    client_info = profile or client_service.get_client_info(login_phone_clean)
                     
                     if client_info:
                         # Авторизуем
                         st.session_state.client_logged_in = True
-                        st.session_state.client_phone = login_phone
+                        st.session_state.client_phone = login_phone_clean
                         st.session_state.client_name = client_info['client_name']
                         st.session_state.client_nav = "👁️ Мои ближайшие консультации"
                         
                         # Remember me token
                         try:
-                            token = auth_manager.issue_remember_token(login_phone)
+                            token = auth_manager.issue_remember_token(login_phone_clean)
                             if token:
                                 st.query_params["rt"] = token
                         except Exception:
@@ -463,7 +473,12 @@ def render_registration_tab(form_data, client_service):
         submitted = st.form_submit_button("📝 Зарегистрироваться и перейти к оплате", use_container_width=True)
         
         if submitted:
-            if not reg_name or not reg_phone or not reg_password:
+            # Обрезаем пробелы у полей (кроме пароля)
+            reg_name_clean = reg_name.strip() if isinstance(reg_name, str) else reg_name
+            reg_phone_clean = reg_phone.strip() if isinstance(reg_phone, str) else reg_phone
+            reg_email_clean = reg_email.strip() if isinstance(reg_email, str) else reg_email
+
+            if not reg_name_clean or not reg_phone_clean or not reg_password:
                 st.error("❌ Заполните все обязательные поля")
             elif reg_password != reg_confirm:
                 st.error("❌ Пароли не совпадают")
@@ -473,13 +488,13 @@ def render_registration_tab(form_data, client_service):
                 from core.auth import AuthManager
                 from utils.validators import validate_phone, validate_email
                 
-                phone_valid, phone_msg = validate_phone(reg_phone)
+                phone_valid, phone_msg = validate_phone(reg_phone_clean)
                 if not phone_valid:
                     st.error(phone_msg)
                     return
                 
-                if reg_email:
-                    email_valid, email_msg = validate_email(reg_email)
+                if reg_email_clean:
+                    email_valid, email_msg = validate_email(reg_email_clean)
                     if not email_valid:
                         st.error(email_msg)
                         return
@@ -487,13 +502,13 @@ def render_registration_tab(form_data, client_service):
                 auth_manager = AuthManager()
                 
                 # Создаем аккаунт
-                if auth_manager.create_client_password(reg_phone, reg_password):
+                if auth_manager.create_client_password(reg_phone_clean, reg_password):
                     # Сохраняем профиль
                     try:
                         client_service.upsert_profile(
-                            reg_phone, 
-                            reg_name.strip(), 
-                            reg_email.strip(), 
+                            reg_phone_clean, 
+                            reg_name_clean, 
+                            reg_email_clean, 
                             form_data.get('telegram', '').strip()
                         )
                     except Exception:
@@ -501,13 +516,13 @@ def render_registration_tab(form_data, client_service):
                     
                     # Авторизуем
                     st.session_state.client_logged_in = True
-                    st.session_state.client_phone = reg_phone
-                    st.session_state.client_name = reg_name
+                    st.session_state.client_phone = reg_phone_clean
+                    st.session_state.client_name = reg_name_clean
                     st.session_state.client_nav = "👁️ Мои ближайшие консультации"
                     
                     # Remember me token
                     try:
-                        token = auth_manager.issue_remember_token(reg_phone)
+                        token = auth_manager.issue_remember_token(reg_phone_clean)
                         if token:
                             st.query_params["rt"] = token
                     except Exception:
