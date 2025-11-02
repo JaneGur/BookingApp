@@ -182,14 +182,13 @@ def render_step_user_data():
     
     with col_b:
         client_phone = st.text_input(
-            "📱 Телефон *", 
-            placeholder="+7 (999) 123-45-67",
+            "📱 Телефон *",
+            placeholder="+7XXXXXXXXXX",
             value=form_data.get('phone', ''),
             key="step2_phone"
         )
-        
         client_telegram = st.text_input(
-            "💬 Telegram username", 
+            "💬 Telegram username",
             placeholder="@username",
             value=form_data.get('telegram', ''),
             key="step2_telegram"
@@ -220,7 +219,6 @@ def render_step_user_data():
             client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
             client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
             notes_clean = notes.strip() if isinstance(notes, str) else notes
-
             # Валидация
             if not client_name_clean or not client_phone_clean:
                 st.error("❌ Заполните имя и телефон")
