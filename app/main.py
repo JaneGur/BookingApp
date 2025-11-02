@@ -42,95 +42,108 @@ def _pop_query_param(key: str):
         except Exception:
             pass
 
-def setup_sidebar():
-    """Настройка боковой панели"""
-    with st.sidebar:
-        st.markdown("# 🌿 Навигация")
-        
+def render_top_bar():
+    """Компактная верхняя панель с навигацией"""
+    
+    # Разделяем на логотип/название и действия
+    col1, col2 = st.columns([3, 2])
+    
+    with col1:
+        st.markdown("## 🌿 Онлайн-запись на консультацию")
+    
+    with col2:
+        # Для клиента
         if st.session_state.client_logged_in:
-            setup_client_sidebar()
+            st.markdown(f"**👤 {st.session_state.client_name}**")
+            
+            # Статус Telegram
+            from services.notification_service import NotificationService
+            notification_service = NotificationService()
+            telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if telegram_connected:
+                    st.success("🔔 Уведомления")
+                else:
+                    st.warning("🔕 Без уведомлений")
+            
+            with col_b:
+                if st.button("🚪 Выйти", use_container_width=True, key="client_logout_top"):
+                    try:
+                        auth = AuthManager()
+                        if st.session_state.client_phone:
+                            auth.revoke_tokens(st.session_state.client_phone)
+                        st.query_params.clear()
+                    except Exception:
+                        pass
+                    from core.session_state import client_logout
+                    client_logout()
+                    st.rerun()
+        
+        # Для администратора
         elif st.session_state.admin_logged_in:
-            setup_admin_sidebar()
+            st.success("**👩‍💼 Администратор**")
+            
+            # Быстрая статистика
+            from services.analytics_service import AnalyticsService
+            analytics_service = AnalyticsService()
+            total, upcoming, this_month, this_week = analytics_service.get_stats()
+            
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
+            with col_stat1:
+                st.metric("Всего", total, label_visibility="collapsed")
+                st.caption("📋 Всего")
+            with col_stat2:
+                st.metric("Предстоящих", upcoming, label_visibility="collapsed")
+                st.caption("⏰ Предстоящих")
+            with col_stat3:
+                if st.button("🚪 Выйти", use_container_width=True, key="admin_logout_top"):
+                    from core.session_state import admin_logout
+                    try:
+                        auth = AuthManager()
+                        auth.revoke_admin_tokens()
+                        _pop_query_param('at')
+                    except Exception:
+                        pass
+                    admin_logout()
+                    st.rerun()
         
-        # Админ-секция всегда внизу (кроме случая когда админ уже залогинен)
-        if not st.session_state.admin_logged_in:
-            setup_admin_section()
-
-def setup_client_sidebar():
-    """Боковая панель для клиента"""
-    if st.session_state.client_name:
-        st.markdown(f"### 👋 {st.session_state.client_name}!")
-
-    # Статус Telegram
-    from services.notification_service import NotificationService
-    notification_service = NotificationService()
-    telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
-    if telegram_connected:
-        st.success("🔔 Уведомления подключены")
-    else:
-        st.warning("🔕 Нет уведомлений")
-
+        # Для гостей
+        else:
+            col_auth1, col_auth2 = st.columns(2)
+            with col_auth1:
+                if st.button("🔐 Войти", use_container_width=True, key="guest_login_top"):
+                    st.session_state.show_client_login = True
+                    st.session_state.show_client_registration = False
+                    st.session_state.show_password_reset = False
+                    st.rerun()
+            
+            with col_auth2:
+                if st.button("📝 Регистрация", use_container_width=True, key="guest_register_top"):
+                    st.session_state.show_client_login = False
+                    st.session_state.show_client_registration = True
+                    st.session_state.show_password_reset = False
+                    st.rerun()
+    
     st.markdown("---")
-    if st.button("🚪 Выйти", width='stretch'):
-        # Отзываем remember-me токены и очищаем query-параметры
-        try:
-            auth = AuthManager()
-            if st.session_state.client_phone:
-                auth.revoke_tokens(st.session_state.client_phone)
-            st.query_params.clear()
-        except Exception:
-            pass
-        from core.session_state import client_logout
-        client_logout()
-        st.rerun()
 
-def setup_admin_sidebar():
-    """Боковая панель для администратора"""
-    st.markdown("### 📊 Статистика")
-    from services.analytics_service import AnalyticsService
-    analytics_service = AnalyticsService()
-    total, upcoming, this_month, this_week = analytics_service.get_stats()
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.metric("📋 Всего", total)
-    with col_m2:
-        st.metric("⏰ Предстоящих", upcoming)
-    col_m3, col_m4 = st.columns(2)
-    with col_m3:
-        st.metric("📅 За месяц", this_month)
-    with col_m4:
-        st.metric("📆 За неделю", this_week)
-    
-    st.divider()
-    st.markdown("### 👩‍💼 Администратор")
-    st.success("✅ Вы зашли как администратор")
-    
-    if st.button("🚪 Выйти", width='stretch'):
-        from core.session_state import admin_logout
-        try:
-            auth = AuthManager()
-            auth.revoke_admin_tokens()
-            _pop_query_param('at')
-        except Exception:
-            pass
-        admin_logout()
-        st.rerun()
-
-def setup_admin_section():
-    """Раздел администратора в сайдбаре"""
-    st.markdown("---")
-    
-    if not st.session_state.client_logged_in and not st.session_state.admin_logged_in:
-        st.markdown("### 👩‍💼 Администратор")
-        
-        if st.button("🔐 Вход для администратора", width='stretch', type="secondary"):
-            st.session_state.show_admin_login = True
-            st.rerun()
-        
-        if st.session_state.show_admin_login:
-            with st.form("admin_sidebar_login", clear_on_submit=True):
-                password = st.text_input("Пароль администратора", type="password")
-                submit = st.form_submit_button("Войти", width='stretch')
+def render_admin_login_modal():
+    """Модальное окно для входа администратора"""
+    if st.session_state.get('show_admin_login_modal'):
+        with st.container():
+            st.markdown("### 👩‍💼 Вход для администратора")
+            
+            with st.form("admin_login_form_modal", clear_on_submit=True):
+                password = st.text_input("Пароль администратора", type="password", key="admin_pass_modal")
+                
+                col_submit, col_cancel = st.columns([1, 1])
+                with col_submit:
+                    submit = st.form_submit_button("Войти", use_container_width=True)
+                with col_cancel:
+                    if st.form_submit_button("Отмена", use_container_width=True):
+                        st.session_state.show_admin_login_modal = False
+                        st.rerun()
                 
                 if submit:
                     auth_manager = AuthManager()
@@ -138,35 +151,70 @@ def setup_admin_section():
                         from core.session_state import admin_login
                         admin_login()
                         st.success("✅ Добро пожаловать!")
-                        # Выдаём админ-токен и фиксируем в URL для автологина
                         try:
                             at = auth_manager.issue_admin_token()
                             if at:
                                 _set_query_param("at", at)
                         except Exception:
                             pass
+                        st.session_state.show_admin_login_modal = False
                         st.rerun()
                     elif password:
                         st.error("❌ Неверный пароль!")
             
-            if st.button("❌ Отмена", width='stretch', type="secondary"):
-                st.session_state.show_admin_login = False
-                st.rerun()
+            st.markdown("---")
 
-def render_public_header():
-    """Простой хедер для публичной страницы"""
-    st.markdown("""
-        <div style="padding: 1.5rem 0 1rem 0; margin-bottom: 1.5rem;">
-            <h1 style="margin: 0; color: #225c52; font-size: 2.5rem;">🌿 Психолог</h1>
-            <p style="margin: 0.5rem 0 0 0; color: #6ba292; font-size: 1.1rem;">Система онлайн-записи на консультацию</p>
-        </div>
-    """, unsafe_allow_html=True)
+def render_footer():
+    """Футер с документами и ссылкой на вход администратора"""
     st.markdown("---")
+    
+    col_footer1, col_footer2 = st.columns([3, 1])
+    
+    with col_footer1:
+        try:
+            from core.database import db_manager
+            sb = db_manager.get_client()
+            policy_url = None
+            offer_url = None
+            if sb is not None:
+                resp = sb.table('documents').select('doc_type, url, is_active, updated_at')\
+                    .eq('is_active', True).execute()
+                rows = resp.data or []
+                for doc_type in ('policy', 'offer'):
+                    docs = [r for r in rows if (r.get('doc_type') == doc_type and r.get('url'))]
+                    docs.sort(key=lambda r: r.get('updated_at') or '', reverse=True)
+                    if docs:
+                        if doc_type == 'policy':
+                            policy_url = docs[0]['url']
+                        else:
+                            offer_url = docs[0]['url']
+            
+            links = []
+            if policy_url:
+                links.append(f"[Политика конфиденциальности]({policy_url})")
+            else:
+                links.append("Политика конфиденциальности (скоро)")
+            if offer_url:
+                links.append(f"[Публичная оферта]({offer_url})")
+            else:
+                links.append("Публичная оферта (скоро)")
+            st.markdown(" · ".join(links))
+        except Exception:
+            pass
+    
+    with col_footer2:
+        # Кнопка входа администратора только для гостей
+        if not st.session_state.client_logged_in and not st.session_state.admin_logged_in:
+            if st.button("👩‍💼 Для администратора", use_container_width=True, key="admin_link_footer"):
+                st.session_state.show_admin_login_modal = True
+                st.rerun()
 
 def main():
     """Главная функция приложения"""
     # Инициализация приложения
-    st.set_page_config(**config.PAGE_CONFIG)
+    page_config = config.PAGE_CONFIG.copy()
+    page_config["initial_sidebar_state"] = "collapsed"  # Скрываем сайдбар
+    st.set_page_config(**page_config)
     load_custom_css()
     
     # Инициализация базы данных
@@ -214,94 +262,29 @@ def main():
                 st.error("❌ Ошибка инициализации системы безопасности")
                 st.stop()
     
-    # Настройка боковой панели
-    setup_sidebar()
+    # Верхняя панель
+    render_top_bar()
+    
+    # Модальное окно входа администратора
+    if st.session_state.get('show_admin_login_modal'):
+        render_admin_login_modal()
     
     # Отображение форм аутентификации если нужно
     if (st.session_state.show_client_login or 
         st.session_state.show_client_registration or 
         st.session_state.show_password_reset):
         render_auth_forms()
-        return
-    
-    # Маршрутизация по ролям
-    if st.session_state.admin_logged_in:
-        render_admin_panel()
-    elif st.session_state.client_logged_in:
-        render_client_cabinet()
     else:
-        # Публичная страница с хедером
-        render_public_header()
-        render_public_booking()
-
-    # Глобальный футер с документами
+        # Маршрутизация по ролям
+        if st.session_state.admin_logged_in:
+            render_admin_panel()
+        elif st.session_state.client_logged_in:
+            render_client_cabinet()
+        else:
+            render_public_booking()
+    
+    # Футер
     render_footer()
-
-def render_footer():
-    """Футер с документами и кнопками аутентификации (только для публичной страницы)"""
-    st.markdown('---')
-    
-    # Кнопки аутентификации только для неавторизованных
-    if not st.session_state.client_logged_in and not st.session_state.admin_logged_in:
-        st.markdown("### 👤 Личный кабинет")
-        st.caption("Войдите или зарегистрируйтесь, чтобы управлять записями и получать уведомления")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("🔐 Войти в кабинет", type="secondary", use_container_width=True, key="footer_login"):
-                st.session_state.show_client_login = True
-                st.session_state.show_client_registration = False
-                st.session_state.show_password_reset = False
-                st.rerun()
-        
-        with col2:
-            if st.button("📝 Регистрация", type="secondary", use_container_width=True, key="footer_register"):
-                st.session_state.show_client_login = False
-                st.session_state.show_client_registration = True
-                st.session_state.show_password_reset = False
-                st.rerun()
-        
-        with col3:
-            if st.button("🔑 Забыли пароль?", type="secondary", use_container_width=True, key="footer_reset"):
-                st.session_state.show_client_login = False
-                st.session_state.show_client_registration = False
-                st.session_state.show_password_reset = True
-                st.rerun()
-        
-        st.markdown('---')
-    
-    # Документы (политика и оферта)
-    try:
-        from core.database import db_manager
-        sb = db_manager.get_client()
-        policy_url = None
-        offer_url = None
-        if sb is not None:
-            resp = sb.table('documents').select('doc_type, url, is_active, updated_at')\
-                .eq('is_active', True).execute()
-            rows = resp.data or []
-            for doc_type in ('policy', 'offer'):
-                docs = [r for r in rows if (r.get('doc_type') == doc_type and r.get('url'))]
-                docs.sort(key=lambda r: r.get('updated_at') or '', reverse=True)
-                if docs:
-                    if doc_type == 'policy':
-                        policy_url = docs[0]['url']
-                    else:
-                        offer_url = docs[0]['url']
-        
-        links = []
-        if policy_url:
-            links.append(f"[Политика конфиденциальности]({policy_url})")
-        else:
-            links.append("Политика конфиденциальности (скоро)")
-        if offer_url:
-            links.append(f"[Публичная оферта]({offer_url})")
-        else:
-            links.append("Публичная оферта (скоро)")
-        st.markdown(" · ".join(links), unsafe_allow_html=True)
-    except Exception:
-        pass
 
 if __name__ == "__main__":
     main()
