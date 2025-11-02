@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from core.auth import AuthManager
 from services.client_service import ClientService
 from services.booking_service import BookingService
@@ -24,7 +25,7 @@ def render_auth_forms():
     elif st.session_state.show_password_reset:
         render_password_reset_form(auth_manager)
 
-def render_login_form_optimized(auth_manager, client_service):
+def render_login_form(auth_manager, client_service):
     """Оптимизированная форма входа - минимум запросов к БД"""
     st.markdown("### 🔐 Вход в личный кабинет")
     
