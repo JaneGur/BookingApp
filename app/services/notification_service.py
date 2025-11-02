@@ -273,7 +273,9 @@ class NotificationService:
     def __init__(self):
         self.bot = TelegramBotService()
         from core.database import db_manager
-        self.supabase = db_manager.get_client()
+        # КРИТИЧНО: Используем service client для UPDATE операций
+        self.supabase_write = db_manager.get_service_client()
+        self.supabase_read = db_manager.get_client()
     
     def notify_booking_created(self, booking_data: Dict[str, Any], client_chat_id: str = None) -> Dict[str, bool]:
         """Полный цикл уведомлений о новой записи"""
@@ -343,18 +345,27 @@ class NotificationService:
         return results
     
     def save_telegram_chat_id(self, phone: str, chat_id: str) -> bool:
-        """Сохранение Telegram chat_id клиента"""
+        """Сохранение Telegram chat_id клиента - ИСПОЛЬЗУЕТ SERVICE CLIENT"""
         try:
             from utils.validators import hash_password, normalize_phone
             phone_hash = hash_password(normalize_phone(phone))
             
+            # КРИТИЧНО: Используем service client для UPDATE
+            supabase = self.supabase_write or self.supabase_read
+            
+            if not supabase:
+                print("❌ Нет доступного клиента Supabase")
+                return False
+            
             # Обновляем все записи клиента
-            response = self.supabase.table('bookings')\
+            response = supabase.table('bookings')\
                 .update({'telegram_chat_id': chat_id})\
                 .eq('phone_hash', phone_hash)\
                 .execute()
             
+            print(f"✅ Chat ID сохранён для {phone_hash[:10]}... Обновлено записей: {len(response.data) if response.data else 0}")
             return True
+            
         except Exception as e:
             print(f"❌ Ошибка сохранения chat_id: {e}")
             return False
@@ -365,16 +376,28 @@ class NotificationService:
             from utils.validators import hash_password, normalize_phone
             phone_hash = hash_password(normalize_phone(phone))
             
-            response = self.supabase.table('bookings')\
+            # Для чтения можем использовать обычный клиент
+            supabase = self.supabase_read
+            
+            if not supabase:
+                print("❌ Нет доступного клиента Supabase для чтения")
+                return None
+            
+            response = supabase.table('bookings')\
                 .select('telegram_chat_id')\
                 .eq('phone_hash', phone_hash)\
                 .not_.is_('telegram_chat_id', None)\
                 .limit(1)\
                 .execute()
             
-            if response.data and response.data[0]['telegram_chat_id']:
-                return response.data[0]['telegram_chat_id']
+            if response.data and response.data[0].get('telegram_chat_id'):
+                chat_id = response.data[0]['telegram_chat_id']
+                print(f"✅ Найден Chat ID для {phone_hash[:10]}...: {chat_id}")
+                return chat_id
+            
+            print(f"⚠️ Chat ID не найден для {phone_hash[:10]}...")
             return None
+            
         except Exception as e:
             print(f"❌ Ошибка получения chat_id: {e}")
             return None
