@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import time
+import time as time_module
 from datetime import datetime, timedelta
 from services.booking_service import BookingService
 from services.client_service import ClientService
@@ -64,7 +64,7 @@ def render_bookings_tab(booking_service):
             date_from = st.date_input("С", value=today, key="adm_book_from")
         with col_b2:
             date_to = st.date_input("По", value=today + timedelta(days=30), key="adm_book_to")
-        if st.button("🔄 Обновить", key="refresh_bookings", width='stretch'):
+        if st.button("🔄 Обновить", key="refresh_bookings", use_container_width=True):
             st.rerun()
         df = booking_service.get_all_bookings(str(date_from), str(date_to))
         # Показываем здесь только оплаченные записи
@@ -172,32 +172,23 @@ def render_bookings_tab(booking_service):
                     with colp2:
                         status_val = b.get('status')
                         if status_val == 'pending_payment':
-                            if st.button("💳 Пометить как оплачено", key=f"pending_paid_{b['id']}", width='stretch'):
-                                with st.spinner("💳 Обработка оплаты..."):
-                                   time.sleep(0.2)
+                            if st.button("💳 Пометить как оплачено", key=f"pending_paid_{b['id']}", use_container_width=True):
                                 ok, msg = booking_service.mark_booking_paid(b['id'])
                                 if ok:
                                     st.success(msg)
-                                    time.sleep(0.3)
                                     st.rerun()
                                 else:
                                     st.error(msg)
-                        # Для заказов в статусе оплачено напоминания в этом разделе не показываем
                     with colp3:
-                        if st.button("❌ Отменить заказ", key=f"pending_cancel_{b['id']}", width='stretch'):
-                            with st.spinner("❌ Отмена заказа..."):
-                             time.sleep(0.2)
+                        if st.button("❌ Отменить заказ", key=f"pending_cancel_{b['id']}", use_container_width=True):
                             ok, msg = booking_service.update_booking_status(b['id'], 'cancelled')
                             if ok:
                                 st.success("✅ Отменено")
-                                time.sleep(0.3)
                                 st.rerun()
                             else:
                                 st.error(msg)
         else:
             st.info("Нет заказов для выбранного фильтра")
-
-    
 
 def render_clients_tab(client_service, booking_service):
     """Вкладка управления клиентами"""
@@ -217,13 +208,19 @@ def render_clients_tab(client_service, booking_service):
     # Кнопки действий
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
     with col_btn1:
-        if st.button("🔄 Обновить список", width='stretch', key="refresh_clients"):
+        if st.button("🔄 Обновить список", use_container_width=True, key="refresh_clients"):
+            with st.spinner("⏳ Обработка..."):
+             time_module.sleep(0.2)
             st.rerun()
     with col_btn2:
-        if st.button("📊 Статистика", width='stretch', key="toggle_stats"):
+        if st.button("📊 Статистика", use_container_width=True, key="toggle_stats"):
+            with st.spinner("⏳ Обработка..."):
+              time_module.sleep(0.2)
             st.session_state.show_stats = not st.session_state.get('show_stats', False)
     with col_btn3:
-        if st.button("➕ Новая запись", width='stretch', type="primary", key="new_booking_btn"):
+        if st.button("➕ Новая запись", use_container_width=True, type="primary", key="new_booking_btn"):
+            with st.spinner("⏳ Обработка..."):
+              time_module.sleep(0.2)
             st.session_state.show_new_booking_form = True
     
     # Форма создания новой записи
@@ -272,9 +269,11 @@ def render_clients_tab(client_service, booking_service):
             
             col_submit, col_cancel = st.columns([1, 1])
             with col_submit:
-                submit_booking = st.form_submit_button("✅ Создать заказ", width='stretch')
+                submit_booking = st.form_submit_button("✅ Создать заказ", use_container_width=True)
             with col_cancel:
-                if st.form_submit_button("❌ Отмена", width='stretch'):
+                if st.form_submit_button("❌ Отмена", use_container_width=True):
+                    with st.spinner("⏳ Отменяем..."):
+                     time_module.sleep(0.2)
                     st.session_state.show_new_booking_form = False
                     st.rerun()
             
@@ -345,57 +344,102 @@ def render_clients_tab(client_service, booking_service):
         
         # Отображаем клиентов
         for idx, client in clients_df.iterrows():
+            client_key = f"client_{client['phone_hash']}"
+            
             with st.expander(f"👤 {client['client_name']} - 📱 {client['client_phone']} | 📅 Записей: {client['total_bookings']}", expanded=False):
-                col1, col2, col3 = st.columns([2, 1, 1])
+                # Основная информация
+                col1, col2 = st.columns([3, 1])
                 
                 with col1:
-                    st.markdown("**Контактная информация:**")
+                    st.markdown("**📇 Контактная информация:**")
                     st.write(f"📧 Email: {client['client_email'] or 'Не указан'}")
                     st.write(f"💬 Telegram: {client['client_telegram'] or 'Не указан'}")
                     
-                    st.markdown("**Статистика:**")
+                    st.markdown("---")
+                    st.markdown("**📊 Статистика:**")
                     col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
                     with col_stat1:
-                        st.metric("Всего записей", client['total_bookings'])
+                        st.metric("Всего", client['total_bookings'])
                     with col_stat2:
                         st.metric("Предстоящие", client['upcoming_bookings'])
                     with col_stat3:
                         st.metric("Завершено", client['completed_bookings'])
                     with col_stat4:
                         st.metric("Отменено", client['cancelled_bookings'])
+                    
+                    if client['first_booking'] or client['last_booking']:
+                        st.markdown("---")
+                        st.markdown("**📅 Даты:**")
+                        if client['first_booking']:
+                            st.caption(f"Первая запись: {format_date(client['first_booking'])}")
+                        if client['last_booking']:
+                            st.caption(f"Последняя запись: {format_date(client['last_booking'])}")
                 
                 with col2:
-                    st.markdown("**Даты:**")
-                    if client['first_booking']:
-                        first_booking = format_date(client['first_booking'])
-                        st.write(f"📅 Первая запись: {first_booking}")
-                    if client['last_booking']:
-                        last_booking = format_date(client['last_booking'])
-                        st.write(f"📅 Последняя запись: {last_booking}")
-                
-                with col3:
-                    if st.button("📋 История записей", key=f"history_{client['phone_hash']}", width='stretch'):
-                        st.session_state.selected_client = client['phone_hash']
-                        st.session_state.selected_client_name = client['client_name']
-                    # Удаление клиента
-                    with st.popover("🗑️ Удалить клиента", use_container_width=True):
-                        st.warning("Действие необратимо. Удаляется профиль и доступ. Можно также удалить ВСЕ записи клиента.")
-                        cascade = st.checkbox("Также удалить все записи клиента", key=f"del_cascade_{client['phone_hash']}")
-                        confirm = st.checkbox("Я понимаю, удалить без возможности восстановления", key=f"del_confirm_ack_{client['phone_hash']}")
-                        disabled = not confirm
-                        if st.button("✅ Подтвердить удаление", key=f"del_exec_{client['phone_hash']}", use_container_width=True, disabled=disabled):
-                            ok, msg = client_service.delete_client_by_hash(client['phone_hash'], cascade_bookings=cascade)
-                            if ok:
-                                st.success(msg)
-                                st.session_state.selected_client = None
+                    st.markdown("**⚙️ Действия:**")
+                    
+                    # Кнопка истории записей
+                    if st.button("📋 История записей", key=f"show_history_{client_key}", use_container_width=True, type="primary"):
+                       with st.spinner("⏳ Обработка..."):
+                        time_module.sleep(0.2)
+                        if st.session_state.get('selected_client') == client['phone_hash']:
+                            # Если уже открыто - закрываем
+                            st.session_state.selected_client = None
+                            st.session_state.selected_client_name = None
+                        else:
+                            # Открываем историю
+                            st.session_state.selected_client = client['phone_hash']
+                            st.session_state.selected_client_name = client['client_name']
+                        st.rerun()
+                    
+                    # Кнопка удаления клиента
+                    delete_key = f"delete_mode_{client_key}"
+                    if st.session_state.get(delete_key):
+                        # Режим подтверждения удаления
+                        st.warning("⚠️ Удалить?")
+                        
+                        cascade = st.checkbox("С записями", key=f"cascade_{client_key}", value=False)
+                        
+                        col_del1, col_del2 = st.columns(2)
+                        with col_del1:
+                            if st.button("✅ Да", key=f"confirm_del_{client_key}", use_container_width=True):
+                               with st.spinner("⏳ Обработка..."):
+                                time_module.sleep(0.2)
+                                ok, msg = client_service.delete_client_by_hash(client['phone_hash'], cascade_bookings=cascade)
+                                if ok:
+                                    st.success(msg)
+                                    st.session_state[delete_key] = False
+                                    st.session_state.selected_client = None
+                                    time_module.sleep(0.5)
+                                    st.rerun()
+                                else:
+                                    st.error(msg)
+                        with col_del2:
+                            if st.button("❌ Нет", key=f"cancel_del_{client_key}", use_container_width=True):
+                                with st.spinner("⏳ Обработка..."):
+                                 time_module.sleep(0.2)
+                                st.session_state[delete_key] = False
                                 st.rerun()
-                            else:
-                                st.error(msg)
+                    else:
+                        # Обычная кнопка удаления
+                        if st.button("🗑️ Удалить клиента", key=f"delete_{client_key}", use_container_width=True):
+                            with st.spinner("⏳ Удаляем..."):
+                             time_module.sleep(0.2)
+                            st.session_state[delete_key] = True
+                            st.rerun()
                 
-                # История записей выбранного клиента
+                # История записей (если выбран этот клиент)
                 if st.session_state.get('selected_client') == client['phone_hash']:
                     st.markdown("---")
                     st.markdown(f"#### 📋 История записей: {client['client_name']}")
+                    
+                    # Кнопка закрытия истории
+                    if st.button("✖️ Скрыть историю", key=f"hide_history_{client_key}"):
+                        with st.spinner("⏳ Обработка..."):
+                         time_module.sleep(0.2)
+                        st.session_state.selected_client = None
+                        st.session_state.selected_client_name = None
+                        st.rerun()
                     
                     history_df = client_service.get_client_booking_history(client['phone_hash'])
                     if not history_df.empty:
@@ -429,12 +473,14 @@ def render_client_booking_history(booking, booking_service):
     from config.constants import STATUS_DISPLAY
     status_info = STATUS_DISPLAY.get(booking['status'], STATUS_DISPLAY['confirmed'])
     
+    booking_key = f"booking_{booking['id']}"
+    
     with st.container():
-        col_hist1, col_hist2, col_hist3 = st.columns([3, 1, 1])
+        col1, col2 = st.columns([3, 1])
         
-        with col_hist1:
+        with col1:
             date_formatted = format_date(booking['booking_date'])
-            st.write(f"**{date_formatted} {booking['booking_time']}** - {status_info['emoji']} {status_info['text']}")
+            st.write(f"**{status_info['emoji']} {date_formatted} {booking['booking_time']}** - {status_info['text']}")
             if booking['notes']:
                 st.info(f"💭 {booking['notes']}")
             try:
@@ -452,23 +498,85 @@ def render_client_booking_history(booking, booking_service):
                     st.write(f"🧾 Продукт: {pname_disp}{f', Сумма: {amount} ₽' if amount is not None else ''}")
             except Exception:
                 pass
-        
-        with col_hist2:
+            
             if booking.get('created_at'):
                 created_at_value = booking['created_at']
-                # Поддержка как ISO-дат со временем (YYYY-MM-DDTHH:MM:SS), так и дат без времени (YYYY-MM-DD)
                 created_at = format_date(created_at_value[:10]) if 'T' in created_at_value else format_date(created_at_value)
-                st.write(f"📅 Записано: {created_at}")
+                st.caption(f"📅 Записано: {created_at}")
         
-        with col_hist3:
-            # Меню управления записью
-            with st.popover("⚙️ Управление", width='stretch'):
-                # Изменение статуса
-                st.markdown("**📊 Изменить статус:**")
+        with col2:
+            # Управление записью
+            edit_mode_key = f"edit_mode_{booking_key}"
+            
+            if st.session_state.get(edit_mode_key):
+                # Режим редактирования
+                st.markdown("**✏️ Редактирование**")
+                
+                # Закрыть редактирование
+                if st.button("✖️ Закрыть", key=f"close_edit_{booking_key}", use_container_width=True):
+                   with st.spinner("⏳ Закрываем..."):
+                    time_module.sleep(0.2)
+                    st.session_state[edit_mode_key] = False
+                    st.rerun()
+            else:
+                # Обычный режим - показываем кнопки действий
+                st.markdown("**⚙️ Действия**")
+                
+                # Кнопка редактирования
+                if st.button("✏️ Изменить", key=f"edit_{booking_key}", use_container_width=True):
+                    with st.spinner("⏳ Обработка..."):
+                     time_module.sleep(0.2)
+                    st.session_state[edit_mode_key] = True
+                    st.rerun()
+                
+                # Быстрая смена статуса
+                if booking['status'] == 'pending_payment':
+                    if st.button("💳 Оплачено", key=f"paid_{booking_key}", use_container_width=True, type="primary"):
+                        with st.spinner("⏳ Обработка..."):
+                         time_module.sleep(0.2)
+                        success, message = booking_service.mark_booking_paid(booking['id'])
+                        if success:
+                            st.success(message)
+                            import time
+                            time_module.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error(message)
+        
+        # Форма редактирования (если включен режим редактирования)
+        if st.session_state.get(edit_mode_key):
+            st.markdown("---")
+            with st.form(f"edit_form_{booking_key}"):
+                st.markdown("##### Редактирование записи")
+                
+                col_e1, col_e2 = st.columns(2)
+                
+                with col_e1:
+                    cur_date = booking['booking_date']
+                    try:
+                        date_val = datetime.strptime(cur_date, "%Y-%m-%d").date()
+                    except Exception:
+                        try:
+                            date_val = datetime.strptime(cur_date[:10], "%Y-%m-%d").date()
+                        except Exception:
+                            date_val = now_msk().date()
+                    
+                    new_date = st.date_input("Дата", value=date_val, key=f"date_{booking_key}")
+                
+                with col_e2:
+                    cur_time = booking['booking_time']
+                    try:
+                        time_val = datetime.strptime(cur_time, "%H:%M").time() if cur_time else datetime.strptime("09:00", "%H:%M").time()
+                    except Exception:
+                        time_val = datetime.strptime("09:00", "%H:%M").time()
+                    
+                    new_time = st.time_input("Время", value=time_val, key=f"time_{booking_key}")
+                
+                # Статус
                 status_options = {
                     'pending_payment': '🟡 Ожидает оплаты',
                     'confirmed': '✅ Подтверждена',
-                    'cancelled': '❌ Отменена', 
+                    'cancelled': '❌ Отменена',
                     'completed': '✅ Завершена'
                 }
                 new_status = st.selectbox(
@@ -476,51 +584,44 @@ def render_client_booking_history(booking, booking_service):
                     options=list(status_options.keys()),
                     format_func=lambda x: status_options[x],
                     index=list(status_options.keys()).index(booking['status']),
-                    key=f"status_{booking['id']}"
+                    key=f"status_{booking_key}"
                 )
-                if st.button("🔄 Обновить статус", key=f"update_status_{booking['id']}", width='stretch'):
-                    success, message = booking_service.update_booking_status(booking['id'], new_status)
-                    if success:
-                        st.success(message)
+                
+                # Комментарий
+                new_notes = st.text_area("Комментарий", value=booking['notes'] or '', height=80, key=f"notes_{booking_key}")
+                
+                col_s1, col_s2 = st.columns(2)
+                with col_s1:
+                    if st.form_submit_button("💾 Сохранить", use_container_width=True, type="primary"):
+                        # Сохраняем изменения
+                        with st.spinner("⏳ Обработка..."):
+                         time_module.sleep(0.2)
+                        ok1, msg1 = booking_service.update_booking_details(
+                            booking['id'],
+                            new_date=str(new_date),
+                            new_time=new_time.strftime("%H:%M") if new_time else None,
+                            new_notes=new_notes
+                        )
+                        ok2, msg2 = booking_service.update_booking_status(booking['id'], new_status)
+                        
+                        if ok1 and ok2:
+                            st.success("✅ Изменения сохранены")
+                            st.session_state[edit_mode_key] = False
+                            import time
+                            time_module.sleep(0.5)
+                            st.rerun()
+                        else:
+                            if not ok1:
+                                st.error(msg1)
+                            if not ok2:
+                                st.error(msg2)
+                
+                with col_s2:
+                    if st.form_submit_button("❌ Отмена", use_container_width=True):
+                        with st.spinner("⏳ Обработка..."):
+                         time_module.sleep(0.2)
+                        st.session_state[edit_mode_key] = False
                         st.rerun()
-                if st.button("💳 Пометить как оплачено", key=f"mark_paid_{booking['id']}", width='stretch'):
-                    success, message = BookingService().mark_booking_paid(booking['id'])
-                    if success:
-                        st.success(message)
-                        st.rerun()
-
-                st.markdown("**🗓️ Изменить дату и время:**")
-                from datetime import datetime
-                cur_date = booking['booking_date']
-                cur_time = booking['booking_time']
-                try:
-                    date_val = datetime.strptime(cur_date, "%Y-%m-%d").date()
-                except Exception:
-                    try:
-                        date_val = datetime.strptime(cur_date[:10], "%Y-%m-%d").date()
-                    except Exception:
-                        date_val = now_msk().date()
-                try:
-                    time_val = datetime.strptime(cur_time, "%H:%M").time() if cur_time else datetime.strptime("09:00", "%H:%M").time()
-                except Exception:
-                    time_val = datetime.strptime("09:00", "%H:%M").time()
-                new_date = st.date_input("Дата", value=date_val, key=f"edit_date_{booking['id']}")
-                new_time = st.time_input("Время", value=time_val, key=f"edit_time_{booking['id']}")
-
-                st.markdown("**💭 Комментарий:**")
-                new_notes = st.text_area("Комментарий", value=booking['notes'] or '', height=80, key=f"edit_notes_{booking['id']}")
-                if st.button("💾 Сохранить изменения", key=f"save_changes_{booking['id']}", width='stretch'):
-                    ok, msg = booking_service.update_booking_details(
-                        booking['id'],
-                        new_date=str(new_date),
-                        new_time=new_time.strftime("%H:%M") if new_time else None,
-                        new_notes=new_notes
-                    )
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
         
         st.markdown("---")
 

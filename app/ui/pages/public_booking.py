@@ -357,11 +357,12 @@ def render_step_datetime(booking_service):
             is_selected = (time_slot == selected_time)
             button_type = "primary" if is_selected else "secondary"
             label = f"{'✓ ' if is_selected else ''}🕐 {time_slot}"
-            
             if st.button(label, key=f"slot_{time_slot}", use_container_width=True, type=button_type):
-                st.session_state.booking_form_data['date'] = selected_date
-                st.session_state.booking_form_data['time'] = time_slot
-                st.rerun()
+                with st.spinner("⏳ Загружаем выбранное время..."):
+                    time.sleep(0.2)
+                    st.session_state.booking_form_data['date'] = selected_date
+                    st.session_state.booking_form_data['time'] = time_slot
+                    st.rerun()
     
     # Кнопки навигации
     st.markdown("---")
@@ -798,15 +799,18 @@ def render_pay_later_tab(form_data):
     
     with col1:
         if st.button("🏠 На главную", use_container_width=True, type="primary"):
-            # Сбрасываем форму
-            st.session_state.booking_step = 1
-            st.session_state.booking_form_data = {}
-            st.rerun()
+            with st.spinner("⏳ Возврат на главную..."):
+                time.sleep(0.2)
+                st.session_state.booking_step = 1
+                st.session_state.booking_form_data = {}
+                st.rerun()
     
     with col2:
         if st.button("🔐 Войти сейчас", use_container_width=True):
-            st.session_state.show_client_login = True
-            st.rerun()
+            with st.spinner("⏳ Открываем форму входа..."):
+                time.sleep(0.2)
+                st.session_state.show_client_login = True
+                st.rerun()
 
     # Если пользователь нажал "Войти сейчас" — показываем форму входа прямо здесь
     if st.session_state.get("show_client_login"):
