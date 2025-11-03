@@ -12,7 +12,7 @@ from utils.docs import render_consent_line
 from utils.datetime_helpers import now_msk
 
 def render_public_booking():
-    """Отрисовка публичной страницы записи с пошаговой формой"""
+    """Отрисовка публичной страницы записи с мобильной оптимизацией"""
     
     # Инициализация состояния шагов
     if 'booking_step' not in st.session_state:
@@ -32,10 +32,11 @@ def render_public_booking():
         render_info_panel()
 
 def render_booking_steps(booking_service, client_service):
-    """Отрисовка пошаговой формы"""
+    """Отрисовка пошаговой формы с мобильной навигацией"""
     current_step = st.session_state.booking_step
     
-    # Индикатор прогресса
+    # Индикатор прогресса с якорем для прокрутки
+    st.markdown(f'<div id="step-indicator-{current_step}"></div>', unsafe_allow_html=True)
     render_progress_indicator(current_step)
     
     st.markdown("---")
@@ -49,6 +50,31 @@ def render_booking_steps(booking_service, client_service):
         render_step_confirmation(booking_service)
     elif current_step == 4:
         render_step_authorization(booking_service, client_service)
+    
+    # Скрипт для автоматической прокрутки к текущему шагу
+    st.markdown(f"""
+    <script>
+        // Прокрутка к индикатору текущего шага
+        setTimeout(function() {{
+            const element = document.getElementById('step-indicator-{current_step}');
+            if (element) {{
+                element.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+            }}
+        }}, 100);
+        
+        // Прокрутка к активному полю ввода при фокусе
+        document.addEventListener('DOMContentLoaded', function() {{
+            const inputs = document.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {{
+                input.addEventListener('focus', function() {{
+                    setTimeout(() => {{
+                        this.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                    }}, 300);
+                }});
+            }});
+        }});
+    </script>
+    """, unsafe_allow_html=True)
 
 def render_progress_indicator(current_step):
     """Визуальный индикатор прогресса"""
@@ -58,6 +84,39 @@ def render_progress_indicator(current_step):
         {"num": 3, "icon": "✅", "title": "Подтверждение"},
         {"num": 4, "icon": "🔐", "title": "Авторизация"}
     ]
+    
+    # Мобильная адаптация: компактное отображение на узких экранах
+    st.markdown("""
+    <style>
+    @media (max-width: 768px) {
+        .step-indicator-mobile {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 1rem;
+        }
+        .step-mobile {
+            flex: 1;
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+        .step-mobile-active {
+            background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%);
+            color: white;
+            font-weight: 700;
+        }
+        .step-mobile-completed {
+            background: rgba(136, 200, 188, 0.3);
+            color: #2d5a4f;
+        }
+        .step-mobile-pending {
+            background: rgba(240, 242, 245, 0.5);
+            color: #9ca3af;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     cols = st.columns(4)
     
@@ -73,9 +132,9 @@ def render_progress_indicator(current_step):
                 </div>
                 """, unsafe_allow_html=True)
             elif step["num"] == current_step:
-                # Текущий шаг
+                # Текущий шаг с якорем для прокрутки
                 st.markdown(f"""
-                <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%); 
+                <div id="current-step" style="text-align: center; padding: 15px; background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%); 
                      border-radius: 12px; color: white; box-shadow: 0 4px 12px rgba(136, 200, 188, 0.4);
                      border: 3px solid rgba(255, 255, 255, 0.5);">
                     <div style="font-size: 28px; margin-bottom: 5px;">{step["icon"]}</div>
@@ -93,7 +152,8 @@ def render_progress_indicator(current_step):
                 """, unsafe_allow_html=True)
 
 def render_step_datetime(booking_service):
-    """Шаг 1: Выбор даты и времени"""
+    """Шаг 1: Выбор даты и времени с якорями"""
+    st.markdown('<div id="step1-form"></div>', unsafe_allow_html=True)
     st.markdown("### 📅 Шаг 1: Выберите дату и время")
     st.caption("Всё время — по Москве (MSK)")
     
@@ -101,6 +161,7 @@ def render_step_datetime(booking_service):
     min_date = now_msk().date()
     max_date = min_date + timedelta(days=BOOKING_RULES["MAX_DAYS_AHEAD"])
     
+    st.markdown('<div id="date-picker"></div>', unsafe_allow_html=True)
     selected_date = st.date_input(
         "Дата консультации", 
         min_value=min_date,
@@ -117,6 +178,7 @@ def render_step_datetime(booking_service):
         st.warning("😔 На выбранную дату нет свободных слотов. Выберите другую дату.")
         return
     
+    st.markdown('<div id="time-slots"></div>', unsafe_allow_html=True)
     st.markdown("#### 🕐 Доступные временные слоты")
     st.info(f"💡 Доступно {len(available_slots)} слотов на {selected_date.strftime('%d.%m.%Y')}")
     
@@ -137,18 +199,20 @@ def render_step_datetime(booking_service):
     
     # Кнопки навигации
     st.markdown("---")
+    st.markdown('<div id="step1-nav"></div>', unsafe_allow_html=True)
     col_nav1, col_nav2 = st.columns([1, 1])
     
     with col_nav2:
         if selected_time:
-            if st.button("Далее ➡️", use_container_width=True, type="primary"):
+            if st.button("Далее ➡️", use_container_width=True, type="primary", key="step1_next"):
                 st.session_state.booking_step = 2
                 st.rerun()
         else:
             st.button("Выберите время", use_container_width=True, disabled=True)
 
 def render_step_user_data():
-    """Шаг 2: Заполнение данных пользователя"""
+    """Шаг 2: Заполнение данных с якорями для каждого поля"""
+    st.markdown('<div id="step2-form"></div>', unsafe_allow_html=True)
     st.markdown("### 👤 Шаг 2: Ваши данные")
     
     form_data = st.session_state.booking_form_data
@@ -159,10 +223,11 @@ def render_step_user_data():
     
     st.markdown("---")
     
-    # Форма данных
+    # Форма данных с якорями для мобильной прокрутки
     col_a, col_b = st.columns(2)
     
     with col_a:
+        st.markdown('<div id="field-name"></div>', unsafe_allow_html=True)
         client_name = st.text_input(
             "👤 Ваше имя *", 
             placeholder="Иван Иванов",
@@ -170,6 +235,7 @@ def render_step_user_data():
             key="step2_name"
         )
         
+        st.markdown('<div id="field-email"></div>', unsafe_allow_html=True)
         client_email = st.text_input(
             "📧 Email", 
             placeholder="example@mail.com",
@@ -177,16 +243,17 @@ def render_step_user_data():
             key="step2_email"
         )
         
-        # Убираем поле ввода Telegram ID — большинству пользователей он неизвестен
-        st.info("Если хотите получать уведомления в Telegram, подключите бота позже в личном кабинете в разделе 'Уведомления' — там есть инструкция, как найти и связать ваш Telegram.")
+        st.info("Если хотите получать уведомления в Telegram, подключите бота позже в личном кабинете в разделе 'Уведомления'")
     
     with col_b:
+        st.markdown('<div id="field-phone"></div>', unsafe_allow_html=True)
         client_phone = st.text_input(
             "📱 Телефон *",
             placeholder="+7XXXXXXXXXX",
             value=form_data.get('phone', ''),
             key="step2_phone"
         )
+        st.markdown('<div id="field-telegram"></div>', unsafe_allow_html=True)
         client_telegram = st.text_input(
             "💬 Telegram username",
             placeholder="@username",
@@ -194,6 +261,7 @@ def render_step_user_data():
             key="step2_telegram"
         )
     
+    st.markdown('<div id="field-notes"></div>', unsafe_allow_html=True)
     notes = st.text_area(
         "💭 Тема консультации (необязательно)", 
         height=80,
@@ -204,24 +272,25 @@ def render_step_user_data():
     
     # Кнопки навигации
     st.markdown("---")
+    st.markdown('<div id="step2-nav"></div>', unsafe_allow_html=True)
     col_nav1, col_nav2 = st.columns([1, 1])
     
     with col_nav1:
-        if st.button("⬅️ Назад", use_container_width=True):
+        if st.button("⬅️ Назад", use_container_width=True, key="step2_back"):
             with st.spinner("Пожалуйста, подождите..."):
                 st.session_state.booking_step = 1
                 st.rerun()
     
     with col_nav2:
-        if st.button("Далее ➡️", use_container_width=True, type="primary"):
+        if st.button("Далее ➡️", use_container_width=True, type="primary", key="step2_next"):
             with st.spinner("Пожалуйста, подождите..."):
-                # Обрезаем случайные пробелы у вводимых полей (не трогаем пароли)
+                # Валидация и переход
                 client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
                 client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
                 client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
                 client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
                 notes_clean = notes.strip() if isinstance(notes, str) else notes
-                        # Валидация
+                
                 if not client_name_clean or not client_phone_clean:
                     st.error("❌ Заполните имя и телефон")
                 else:
@@ -234,7 +303,7 @@ def render_step_user_data():
                             if not email_valid:
                                 st.error(email_msg)
                                 return
-                        # Сохраняем данные (chat_id для гостей не собираем — подключение через личный кабинет)
+                        
                         st.session_state.booking_form_data.update({
                             'name': client_name_clean,
                             'phone': client_phone_clean,
@@ -244,8 +313,10 @@ def render_step_user_data():
                         })
                         st.session_state.booking_step = 3
                         st.rerun()
+
 def render_step_confirmation(booking_service):
-    """Шаг 3: Подтверждение заказа"""
+    """Шаг 3: Подтверждение с прокруткой к кнопке"""
+    st.markdown('<div id="step3-form"></div>', unsafe_allow_html=True)
     st.markdown("### ✅ Шаг 3: Подтверждение заказа")
     
     form_data = st.session_state.booking_form_data
@@ -302,20 +373,20 @@ def render_step_confirmation(booking_service):
     st.markdown("---")
     render_consent_line()
     
-    # Кнопки навигации
+    # Кнопки навигации с якорем
     st.markdown("---")
+    st.markdown('<div id="step3-nav"></div>', unsafe_allow_html=True)
     col_nav1, col_nav2 = st.columns([1, 1])
     
     with col_nav1:
-        if st.button("⬅️ Назад", use_container_width=True):
+        if st.button("⬅️ Назад", use_container_width=True, key="step3_back"):
             with st.spinner("Пожалуйста, подождите..."):
                 st.session_state.booking_step = 2
                 st.rerun()
     
     with col_nav2:
-        if st.button("✅ Создать заказ", use_container_width=True, type="primary"):
+        if st.button("✅ Создать заказ", use_container_width=True, type="primary", key="step3_confirm"):
             with st.spinner("Создаём заказ..."):
-                # Создаем заказ
                 booking_data = {
                     'client_name': form_data.get('name'),
                     'client_phone': form_data.get('phone'),
@@ -331,10 +402,8 @@ def render_step_confirmation(booking_service):
                 success, message = booking_service.create_booking(booking_data)
                 
                 if success:
-                    # Сохраняем контекст для следующего шага
                     st.session_state.booking_form_data['booking_created'] = True
                     
-                    # Автоназначаем продукт
                     if chosen:
                         try:
                             row = booking_service.get_booking_by_datetime(
@@ -360,12 +429,12 @@ def render_step_confirmation(booking_service):
                     st.error(message)
 
 def render_step_authorization(booking_service, client_service):
-    """Шаг 4: Авторизация и переход в личный кабинет"""
+    """Шаг 4: Авторизация с якорями для вкладок"""
+    st.markdown('<div id="step4-form"></div>', unsafe_allow_html=True)
     st.markdown("### 🔐 Шаг 4: Авторизация")
     
     form_data = st.session_state.booking_form_data
     
-    # Показываем успешное создание заказа
     st.success("🎉 Ваш заказ успешно создан!")
     
     st.markdown("""
@@ -384,13 +453,19 @@ def render_step_authorization(booking_service, client_service):
     tab1, tab2, tab3 = st.tabs(["🔐 Войти", "📝 Регистрация", "💳 Оплатить позже"])
     
     with tab1:
+        st.markdown('<div id="login-tab"></div>', unsafe_allow_html=True)
         render_login_tab(form_data, client_service)
     
     with tab2:
+        st.markdown('<div id="register-tab"></div>', unsafe_allow_html=True)
         render_registration_tab(form_data, client_service)
     
     with tab3:
+        st.markdown('<div id="later-tab"></div>', unsafe_allow_html=True)
         render_pay_later_tab(form_data)
+
+# Остальные функции (render_login_tab, render_registration_tab, render_pay_later_tab) 
+# остаются без изменений из исходного файла
 
 def render_login_tab(form_data, client_service):
     """Вкладка входа"""
