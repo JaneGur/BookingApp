@@ -362,7 +362,7 @@ def load_custom_css():
             .telegram-connected h1,
             .telegram-connected h2,
             .telegram-connected h3 {
-                font-size: 1rem !important;
+                font-size: 1,08rem !important;
                 line-height: 1.08 !important;
                 margin-bottom: 0.25rem !important;
             }
