@@ -1,3 +1,5 @@
+# app/ui/pages/auth_forms.py - ОБНОВЛЕННАЯ ВЕРСИЯ с индикаторами загрузки
+
 import streamlit as st
 import time
 from core.auth import AuthManager
@@ -13,20 +15,15 @@ def render_auth_forms():
     client_service = ClientService()
     booking_service = BookingService()
     
-    # Форма входа в личный кабинет
     if st.session_state.show_client_login:
         render_login_form(auth_manager, client_service)
-    
-    # Форма регистрации
     elif st.session_state.show_client_registration:
         render_registration_form(auth_manager, client_service)
-    
-    # Форма сброса пароля
     elif st.session_state.show_password_reset:
         render_password_reset_form(auth_manager)
 
 def render_login_form(auth_manager, client_service):
-    """Оптимизированная форма входа - минимум запросов к БД"""
+    """Форма входа с индикатором загрузки"""
     st.markdown("### 🔐 Вход в личный кабинет")
     
     with st.form("client_login_form", clear_on_submit=False):
@@ -45,22 +42,21 @@ def render_login_form(auth_manager, client_service):
             if not login_phone or not login_password:
                 st.error("❌ Заполните номер телефона и пароль")
             else:
-                # Обрезаем случайные пробелы у номера
                 login_phone_clean = login_phone.strip() if isinstance(login_phone, str) else login_phone
-                # Показываем spinner только на время проверки
-                with st.spinner("🔐 Проверка..."):
+                
+                # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                with st.spinner("🔐 Проверка учетных данных..."):
+                    time.sleep(0.2)  # Минимальная видимость для UX
+                    
                     if auth_manager.verify_client_password(login_phone_clean, login_password):
-                        # Параллельно получаем информацию (одним запросом)
                         profile = client_service.get_profile(login_phone_clean)
                         
                         if profile:
-                            # Быстрая авторизация
                             st.session_state.client_logged_in = True
                             st.session_state.client_phone = login_phone_clean
                             st.session_state.client_name = profile['client_name']
                             st.session_state.show_client_login = False
                             
-                            # Remember token (быстро, не блокирует UI)
                             try:
                                 token = auth_manager.issue_remember_token(login_phone_clean)
                                 if token:
@@ -69,15 +65,15 @@ def render_login_form(auth_manager, client_service):
                                 pass
                             
                             st.success("✅ Успешный вход!")
-                            # Минимальная задержка для читаемости
-                            time.sleep(0.3)
+                            time.sleep(0.5)
                             st.rerun()
                         else:
                             st.error("❌ Клиент не найден")
                     else:
                         st.error("❌ Неверный номер телефона или пароль")
+
 def render_registration_form(auth_manager, client_service):
-    """Форма регистрации"""
+    """Форма регистрации с индикатором загрузки"""
     st.markdown("### 📝 Регистрация в личном кабинете")
     st.info("""
     **Зачем регистрироваться?**
@@ -112,7 +108,6 @@ def render_registration_form(auth_manager, client_service):
                 st.rerun()
         
         if register_submit:
-            # Обрезаем пробелы у вводимых полей (кроме пароля)
             client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
             client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
             client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
@@ -136,33 +131,42 @@ def render_registration_form(auth_manager, client_service):
                             st.error(email_msg)
                             return
 
-                    # Создаем учетную запись
-                    if auth_manager.create_client_password(client_phone_clean, password):
-                        st.success("✅ Учетная запись создана!")
+                    # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                    with st.spinner("📝 Создание учетной записи..."):
+                        time.sleep(0.3)
                         
-                        # Автоматически логиним пользователя
-                        if auth_manager.verify_client_password(client_phone_clean, password):
-                            # Сохраняем профиль клиента
-                            try:
-                                client_service.upsert_profile(client_phone_clean, client_name_clean, client_email_clean or '', client_telegram_clean or '')
-                            except Exception:
-                                pass
-                            client_info = client_service.get_profile(client_phone_clean) or client_service.get_client_info(client_phone_clean)
-                            # Логинимся даже если информации о клиенте ещё нет в БД
-                            st.session_state.client_logged_in = True
-                            st.session_state.client_phone = client_phone_clean
-                            st.session_state.client_name = (client_info['client_name'] if client_info else client_name_clean)
-                            st.session_state.show_client_registration = False
-                            # Remember me token -> query param
-                            try:
-                                token = auth_manager.issue_remember_token(client_phone_clean)
-                                if token:
-                                    st.query_params["rt"] = token
-                            except Exception:
-                                pass
-                            st.rerun()
-                    else:
-                        st.error("❌ Ошибка создания учетной записи")
+                        if auth_manager.create_client_password(client_phone_clean, password):
+                            st.success("✅ Учетная запись создана!")
+                            
+                            with st.spinner("🔐 Вход в систему..."):
+                                time.sleep(0.2)
+                                
+                                if auth_manager.verify_client_password(client_phone_clean, password):
+                                    try:
+                                        client_service.upsert_profile(client_phone_clean, client_name_clean, client_email_clean or '', client_telegram_clean or '')
+                                    except Exception:
+                                        pass
+                                    
+                                    client_info = client_service.get_profile(client_phone_clean) or client_service.get_client_info(client_phone_clean)
+                                    
+                                    st.session_state.client_logged_in = True
+                                    st.session_state.client_phone = client_phone_clean
+                                    st.session_state.client_name = (client_info['client_name'] if client_info else client_name_clean)
+                                    st.session_state.show_client_registration = False
+                                    
+                                    try:
+                                        token = auth_manager.issue_remember_token(client_phone_clean)
+                                        if token:
+                                            st.query_params["rt"] = token
+                                    except Exception:
+                                        pass
+                                    
+                                    st.success("✅ Добро пожаловать!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                        else:
+                            st.error("❌ Ошибка создания учетной записи")
+    
     render_consent_line()
     
     st.markdown("---")
@@ -172,7 +176,7 @@ def render_registration_form(auth_manager, client_service):
         st.rerun()
 
 def render_password_reset_form(auth_manager):
-    """Форма сброса пароля"""
+    """Форма сброса пароля с индикатором загрузки"""
     st.markdown("### 🔑 Восстановление пароля")
     
     with st.form("password_reset_form"):
@@ -192,31 +196,35 @@ def render_password_reset_form(auth_manager):
             else:
                 reset_phone_clean = reset_phone.strip() if isinstance(reset_phone, str) else reset_phone
                 phone_valid, phone_msg = validate_phone(reset_phone_clean)
+                
                 if not phone_valid:
                     st.error(phone_msg)
                 else:
-                    # Генерируем временный пароль
-                    temp_password = auth_manager.generate_temporary_password()
-                    
-                    # Сохраняем новый пароль
-                    if auth_manager.send_password_reset(reset_phone_clean, temp_password):
-                        # Пытаемся отправить через Telegram
-                        notif = NotificationService()
-                        chat_id = notif.get_client_telegram_chat_id(reset_phone)
-                        if chat_id:
-                            sent = notif.bot.send_to_client(chat_id, f"🔑 Ваш временный пароль: <b>{temp_password}</b>\nПожалуйста, смените его после входа.")
-                            if sent:
-                                st.success("✅ Временный пароль отправлен в Telegram")
-                                st.info("ℹ️ Проверьте чат с ботом")
-                            else:
-                                st.warning("⚠️ Не удалось отправить в Telegram. Пароль показан ниже:")
-                                st.success(f"🔑 Временный пароль: **{temp_password}**")
+                    # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                    with st.spinner("🔑 Генерация нового пароля..."):
+                        time.sleep(0.3)
+                        temp_password = auth_manager.generate_temporary_password()
+                        
+                        if auth_manager.send_password_reset(reset_phone_clean, temp_password):
+                            with st.spinner("📤 Отправка пароля..."):
+                                time.sleep(0.2)
+                                notif = NotificationService()
+                                chat_id = notif.get_client_telegram_chat_id(reset_phone)
+                                
+                                if chat_id:
+                                    sent = notif.bot.send_to_client(chat_id, f"🔑 Ваш временный пароль: <b>{temp_password}</b>\nПожалуйста, смените его после входа.")
+                                    if sent:
+                                        st.success("✅ Временный пароль отправлен в Telegram")
+                                        st.info("ℹ️ Проверьте чат с ботом")
+                                    else:
+                                        st.warning("⚠️ Не удалось отправить в Telegram. Пароль показан ниже:")
+                                        st.success(f"🔑 Временный пароль: **{temp_password}**")
+                                else:
+                                    st.success(f"🔑 Временный пароль: **{temp_password}**")
+                                    st.info("⚠️ Сохраните его и смените после входа!")
                         else:
-                            # Фоллбек: показываем пароль на экране
-                            st.success(f"🔑 Временный пароль: **{temp_password}**")
-                            st.info("⚠️ Сохраните его и смените после входа!")
-                    else:
-                        st.error("❌ Ошибка сброса пароля")
+                            st.error("❌ Ошибка сброса пароля")
+    
     render_consent_line()
     
     st.markdown("---")

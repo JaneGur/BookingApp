@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from config.settings import config
 from ui.styles import load_custom_css
 from core.database import db_manager
@@ -45,7 +46,6 @@ def _pop_query_param(key: str):
 def render_top_bar():
     """Компактная верхняя панель с навигацией"""
     
-    # Разделяем на логотип/название и действия
     col1, col2 = st.columns([3, 2])
     
     with col1:
@@ -56,7 +56,6 @@ def render_top_bar():
         if st.session_state.client_logged_in:
             st.markdown(f"**👤 {st.session_state.client_name}**")
             
-            # Статус Telegram
             from services.notification_service import NotificationService
             notification_service = NotificationService()
             telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
@@ -70,22 +69,25 @@ def render_top_bar():
             
             with col_b:
                 if st.button("🚪 Выйти", use_container_width=True, key="client_logout_top"):
-                    try:
-                        auth = AuthManager()
-                        if st.session_state.client_phone:
-                            auth.revoke_tokens(st.session_state.client_phone)
-                        st.query_params.clear()
-                    except Exception:
-                        pass
-                    from core.session_state import client_logout
-                    client_logout()
-                    st.rerun()
+                    # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                    with st.spinner("🚪 Выход из системы..."):
+                        try:
+                            auth = AuthManager()
+                            if st.session_state.client_phone:
+                                auth.revoke_tokens(st.session_state.client_phone)
+                            st.query_params.clear()
+                        except Exception:
+                            pass
+                        from core.session_state import client_logout
+                        client_logout()
+                        st.success("✅ Вы вышли из системы")
+                        time.sleep(0.2)
+                        st.rerun()
         
         # Для администратора
         elif st.session_state.admin_logged_in:
             st.success("**👩‍💼 Здравствуйте, Анна**")
             
-            # Быстрая статистика
             from services.analytics_service import AnalyticsService
             analytics_service = AnalyticsService()
             total, upcoming, this_month, this_week = analytics_service.get_stats()
@@ -99,37 +101,46 @@ def render_top_bar():
                 st.caption("⏰ Предстоящих")
             with col_stat3:
                 if st.button("🚪 Выйти", use_container_width=True, key="admin_logout_top"):
-                    from core.session_state import admin_logout
-                    try:
-                        auth = AuthManager()
-                        auth.revoke_admin_tokens()
-                        _pop_query_param('at')
-                    except Exception:
-                        pass
-                    admin_logout()
-                    st.rerun()
+                    # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                    with st.spinner("🚪 Выход из системы..."):
+                        time.sleep(0.2)
+                        from core.session_state import admin_logout
+                        try:
+                            auth = AuthManager()
+                            auth.revoke_admin_tokens()
+                            _pop_query_param('at')
+                        except Exception:
+                            pass
+                        admin_logout()
+                        st.success("✅ Вы вышли из системы")
+                        time.sleep(0.3)
+                        st.rerun()
         
         # Для гостей
         else:
             col_auth1, col_auth2 = st.columns(2)
             with col_auth1:
                 if st.button("🔐 Войти", use_container_width=True, key="guest_login_top"):
-                    st.session_state.show_client_login = True
-                    st.session_state.show_client_registration = False
-                    st.session_state.show_password_reset = False
-                    st.rerun()
+                    with st.spinner("⏳ Загрузка формы входа..."):
+                        time.sleep(0.3)
+                        st.session_state.show_client_login = True
+                        st.session_state.show_client_registration = False
+                        st.session_state.show_password_reset = False
+                        st.rerun()
             
             with col_auth2:
                 if st.button("📝 Регистрация", use_container_width=True, key="guest_register_top"):
-                    st.session_state.show_client_login = False
-                    st.session_state.show_client_registration = True
-                    st.session_state.show_password_reset = False
-                    st.rerun()
+                    with st.spinner("⏳ Загрузка формы регистрации..."):
+                        time.sleep(0.2)
+                        st.session_state.show_client_login = False
+                        st.session_state.show_client_registration = True
+                        st.session_state.show_password_reset = False
+                        st.rerun()
     
     st.markdown("---")
 
 def render_admin_login_modal():
-    """Модальное окно для входа администратора"""
+    """Модальное окно для входа администратора с индикатором загрузки"""
     if st.session_state.get('show_admin_login_modal'):
         with st.container():
             st.markdown("### 👩‍💼 Вход для администратора")
@@ -146,21 +157,26 @@ def render_admin_login_modal():
                         st.rerun()
                 
                 if submit:
-                    auth_manager = AuthManager()
-                    if password and auth_manager.check_admin_password(password):
-                        from core.session_state import admin_login
-                        admin_login()
-                        st.success("✅ Добро пожаловать!")
-                        try:
-                            at = auth_manager.issue_admin_token()
-                            if at:
-                                _set_query_param("at", at)
-                        except Exception:
-                            pass
-                        st.session_state.show_admin_login_modal = False
-                        st.rerun()
-                    elif password:
-                        st.error("❌ Неверный пароль!")
+                    # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                    with st.spinner("🔐 Проверка пароля администратора..."):
+                        time.sleep(0.3)
+                        auth_manager = AuthManager()
+                        
+                        if password and auth_manager.check_admin_password(password):
+                            from core.session_state import admin_login
+                            admin_login()
+                            st.success("✅ Добро пожаловать!")
+                            try:
+                                at = auth_manager.issue_admin_token()
+                                if at:
+                                    _set_query_param("at", at)
+                            except Exception:
+                                pass
+                            st.session_state.show_admin_login_modal = False
+                            time.sleep(0.3)
+                            st.rerun()
+                        elif password:
+                            st.error("❌ Неверный пароль!")
             
             st.markdown("---")
 
@@ -203,13 +219,14 @@ def render_footer():
             pass
     
     with col_footer2:
-        # Кнопка входа администратора только для гостей
         if not st.session_state.client_logged_in and not st.session_state.admin_logged_in:
             if st.button("👩‍💼 Для администратора", use_container_width=True, key="admin_link_footer"):
-                with st.spinner("Пожалуйста, подождите..."):
+                # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                with st.spinner("⏳ Загрузка формы входа..."):
+                    time.sleep(0.3)
                     st.session_state.show_admin_login_footer = True
                     st.rerun()
-            # Показываем форму для пароля прямо под кнопкой
+            
             if st.session_state.get('show_admin_login_footer'):
                 st.markdown("### 👩‍💼 Вход для администратора")
                 with st.form("admin_login_form_footer", clear_on_submit=True):
@@ -219,12 +236,17 @@ def render_footer():
                         submit = st.form_submit_button("Войти", use_container_width=True)
                     with col_cancel:
                         if st.form_submit_button("Отмена", use_container_width=True):
-                            with st.spinner("Пожалуйста, подождите..."):
+                            with st.spinner("⏳ Закрытие..."):
+                                time.sleep(0.3)
                                 st.session_state.show_admin_login_footer = False
                                 st.rerun()
+                    
                     if submit:
-                        with st.spinner("Проверяем пароль администратора..."):
+                        # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                        with st.spinner("🔐 Проверка пароля администратора..."):
+                            time.sleep(0.3)
                             auth_manager = AuthManager()
+                            
                             if password and auth_manager.check_admin_password(password):
                                 from core.session_state import admin_login
                                 admin_login()
@@ -236,6 +258,7 @@ def render_footer():
                                 except Exception:
                                     pass
                                 st.session_state.show_admin_login_footer = False
+                                time.sleep(0.3)
                                 st.rerun()
                             elif password:
                                 st.error("❌ Неверный пароль!")

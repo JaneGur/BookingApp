@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from datetime import datetime, timedelta
 from config.constants import BOOKING_RULES
 from services.booking_service import BookingService
@@ -133,21 +134,29 @@ def render_dashboard(booking_service, client_service, notification_service, clie
     ac1, ac2, ac3 = st.columns(3)
     with ac1:
         if st.button("📅 Записаться на консультацию", type="primary", width='stretch'):
-            st.session_state.client_nav = "📅 Записаться на консультацию"
-            st.rerun()
+            with st.spinner("⏳ Загрузка формы записи..."):
+                time.sleep(0.1)
+                st.session_state.client_nav = "📅 Записаться на консультацию"
+                st.rerun()
     with ac2:
         if not telegram_connected:
             if st.button("🔔 Подключить Telegram", width='stretch'):
-                st.session_state.client_nav = "💬 Уведомления"
-                st.rerun()
+                with st.spinner("⏳ Загрузка настроек уведомлений..."):
+                    time.sleep(0.1)
+                    st.session_state.client_nav = "💬 Уведомления"
+                    st.rerun()
         else:
             if st.button("👁️ Мои ближайшие консультации", width='stretch'):
-                st.session_state.client_nav = "👁️ Мои ближайшие консультации"
-                st.rerun()
+                with st.spinner("⏳ Загрузка записей..."):
+                    time.sleep(0.1)
+                    st.session_state.client_nav = "👁️ Мои ближайшие консультации"
+                    st.rerun()
     with ac3:
         if st.button("👤 Профиль", width='stretch'):
-            st.session_state.client_nav = "👤 Профиль"
-            st.rerun()
+            with st.spinner("⏳ Загрузка профиля..."):
+                time.sleep(0.1)
+                st.session_state.client_nav = "👤 Профиль"
+                st.rerun()
 
     # Заголовок с бейджем при наличии неоплаченного заказа
     badge = " <span style='background:#FFE08A;color:#614a00;border-radius:999px;padding:2px 8px;font-size:12px;'>Новый неоплаченный заказ</span>" if pending_exists and not upcoming else ""
@@ -310,19 +319,23 @@ def render_current_booking(booking_service, notification_service):
         
         if time_until.total_seconds() > BOOKING_RULES["MIN_CANCEL_MINUTES"] * 60:
             if st.button("❌ Отменить запись", type="secondary", width='stretch'):
-                # Получаем chat_id для уведомления
-                chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
-                success, message = booking_service.cancel_booking(upcoming['id'], st.session_state.client_phone)
-                if success:
-                    # Отправляем уведомления об отмене
-                    notification_service.bot.notify_booking_cancelled_admin(upcoming)
-                    if chat_id:
-                        notification_service.bot.notify_booking_cancelled_client(chat_id, upcoming)
+                # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
+                with st.spinner("❌ Отмена записи..."):
+                    time.sleep(0.2)
+                    chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
+                    success, message = booking_service.cancel_booking(upcoming['id'], st.session_state.client_phone)
                     
-                    st.success(message)
-                    st.rerun()
-                else:
-                    st.error(message)
+                    if success:
+                        notification_service.bot.notify_booking_cancelled_admin(upcoming)
+                        if chat_id:
+                            notification_service.bot.notify_booking_cancelled_client(chat_id, upcoming)
+                        
+                        st.success(message)
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
         else:
             st.warning(f"⚠️ Отмена возможна за {BOOKING_RULES['MIN_CANCEL_MINUTES']}+ минут")
     else:
@@ -478,6 +491,8 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                         render_consent_line()
                         
                         if submit:
+                            with st.spinner("✨ Создание заказа..."):
+                              time.sleep(0.3)
                             # Получаем chat_id для уведомления
                             chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
                             

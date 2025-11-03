@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 from datetime import datetime, timedelta
 from services.booking_service import BookingService
 from services.client_service import ClientService
@@ -172,18 +173,24 @@ def render_bookings_tab(booking_service):
                         status_val = b.get('status')
                         if status_val == 'pending_payment':
                             if st.button("💳 Пометить как оплачено", key=f"pending_paid_{b['id']}", width='stretch'):
+                                with st.spinner("💳 Обработка оплаты..."):
+                                   time.sleep(0.2)
                                 ok, msg = booking_service.mark_booking_paid(b['id'])
                                 if ok:
                                     st.success(msg)
+                                    time.sleep(0.3)
                                     st.rerun()
                                 else:
                                     st.error(msg)
                         # Для заказов в статусе оплачено напоминания в этом разделе не показываем
                     with colp3:
                         if st.button("❌ Отменить заказ", key=f"pending_cancel_{b['id']}", width='stretch'):
+                            with st.spinner("❌ Отмена заказа..."):
+                             time.sleep(0.2)
                             ok, msg = booking_service.update_booking_status(b['id'], 'cancelled')
                             if ok:
                                 st.success("✅ Отменено")
+                                time.sleep(0.3)
                                 st.rerun()
                             else:
                                 st.error(msg)

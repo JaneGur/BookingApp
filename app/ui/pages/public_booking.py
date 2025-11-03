@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from datetime import datetime, timedelta
 from config.constants import BOOKING_RULES
 from services.booking_service import BookingService
@@ -370,6 +371,8 @@ def render_step_datetime(booking_service):
     with col_nav2:
         if selected_time:
             if st.button("Далее ➡️", use_container_width=True, type="primary", key="step1_next"):
+                with st.spinner("🚪 Переходим на следующий шаг..."):
+                    time.sleep(0.2)
                 st.session_state.booking_step = 2
                 st.rerun()
         else:
@@ -443,12 +446,14 @@ def render_step_user_data():
     with col_nav1:
         if st.button("⬅️ Назад", use_container_width=True, key="step2_back"):
             with st.spinner("Пожалуйста, подождите..."):
+                time.sleep(0.2)
                 st.session_state.booking_step = 1
                 st.rerun()
     
     with col_nav2:
         if st.button("Далее ➡️", use_container_width=True, type="primary", key="step2_next"):
             with st.spinner("Пожалуйста, подождите..."):
+                time.sleep(0.2)
                 # Валидация и переход
                 client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
                 client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
@@ -546,12 +551,14 @@ def render_step_confirmation(booking_service):
     with col_nav1:
         if st.button("⬅️ Назад", use_container_width=True, key="step3_back"):
             with st.spinner("Пожалуйста, подождите..."):
+                time.sleep(0.2)
                 st.session_state.booking_step = 2
                 st.rerun()
     
     with col_nav2:
         if st.button("✅ Создать заказ", use_container_width=True, type="primary", key="step3_confirm"):
             with st.spinner("Создаём заказ..."):
+                time.sleep(0.2)
                 booking_data = {
                     'client_name': form_data.get('name'),
                     'client_phone': form_data.get('phone'),
