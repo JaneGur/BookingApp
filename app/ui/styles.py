@@ -262,15 +262,115 @@ def load_custom_css():
         }
         
         /* ===== RESPONSIVE ===== */
-        
+
         @media (max-width: 768px) {
-            .welcome-header h1 {
-                font-size: 1.5rem;
+            /* Make large headings more compact on phones */
+            h1 {
+                font-size: 1.25rem;
+                margin-bottom: 0.4rem;
             }
-            
+
+            h2 {
+                font-size: 1.05rem;
+                margin-bottom: 0.35rem;
+            }
+
+            h3 {
+                font-size: 0.98rem;
+                margin-bottom: 0.3rem;
+            }
+
+            h4 {
+                font-size: 0.95rem;
+                margin-bottom: 0.25rem;
+            }
+
+            /* Tighter welcome header on small screens */
+            .welcome-header {
+                padding: 1.2rem 1rem;
+            }
+
+            .welcome-header h1 {
+                font-size: 1.6rem; /* slightly larger than page h1 but reduced from desktop */
+            }
+
+            .welcome-header p {
+                font-size: 1rem;
+            }
+
+            /* Reduce inner paddings for cards to avoid bulky look */
+            .booking-card, .action-card {
+                padding: 1rem;
+            }
+
             .stTabs [data-baseweb="tab"] {
                 padding: 0.5rem 1rem;
                 font-size: 0.85rem;
+            }
+
+            /* Stronger overrides targeting Streamlit's emotion-generated selectors
+               Streamlit can inject rules like `.st-emotion-cache-xxx h1 { font-size: 2.75rem }`.
+               These selectors have equal specificity, so we use attribute selectors and
+               !important to ensure mobile rules win. */
+            [class*="st-emotion-cache"] h1,
+            .stMarkdown h1,
+            [data-testid="stHeading"] h1 {
+                font-size: 1.25rem !important;
+                line-height: 1.15 !important;
+                margin-bottom: 0.4rem !important;
+            }
+
+            [class*="st-emotion-cache"] h2,
+            .stMarkdown h2 {
+                font-size: 1.05rem !important;
+                line-height: 1.12 !important;
+                margin-bottom: 0.35rem !important;
+            }
+
+            [class*="st-emotion-cache"] h3,
+            .stMarkdown h3 {
+                font-size: 0.98rem !important;
+                line-height: 1.1 !important;
+                margin-bottom: 0.3rem !important;
+            }
+
+            [class*="st-emotion-cache"] h4,
+            .stMarkdown h4 {
+                font-size: 0.95rem !important;
+                line-height: 1.08 !important;
+                margin-bottom: 0.25rem !important;
+            }
+
+            /* Ensure welcome-header remains slightly larger but constrained */
+            [class*="st-emotion-cache"] .welcome-header h1,
+            .welcome-header h1 {
+                font-size: 1.6rem !important;
+                margin-bottom: 0.35rem !important;
+            }
+
+            /* Target Streamlit heading widgets and common telegram/info cards which
+               sometimes render very large text — make them compact on mobile */
+            [data-testid="stHeading"] h1,
+            [data-testid="stHeading"] h2,
+            [data-testid="stHeading"] h3,
+            [data-testid="stHeading"] h4,
+            [class*="st-emotion-cache"] .telegram-disconnected,
+            [class*="st-emotion-cache"] .telegram-connected,
+            .telegram-disconnected h1,
+            .telegram-disconnected h2,
+            .telegram-disconnected h3,
+            .telegram-connected h1,
+            .telegram-connected h2,
+            .telegram-connected h3 {
+                font-size: 1rem !important;
+                line-height: 1.08 !important;
+                margin-bottom: 0.25rem !important;
+            }
+
+            /* Metric-like big values (в карточках статистики) */
+            [data-testid="stMetricValue"],
+            [class*="st-emotion-cache"] [data-testid="stMetricValue"] {
+                font-size: 1.15rem !important;
             }
         }
         
