@@ -596,6 +596,7 @@ def render_step_confirmation(booking_service):
 def render_step_authorization(booking_service, client_service):
     """Шаг 4: Авторизация с якорями для вкладок"""
     st.markdown('<div id="step4-form"></div>', unsafe_allow_html=True)
+    st.markdown("### 🔐 Шаг 4: Авторизация")
     
     form_data = st.session_state.booking_form_data
     
