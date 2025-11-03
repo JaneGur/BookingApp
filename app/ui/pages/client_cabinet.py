@@ -25,12 +25,20 @@ def render_client_cabinet():
     profile = client_service.get_profile(st.session_state.client_phone)
     client_info = profile or client_service.get_client_info(st.session_state.client_phone)
     
-    st.markdown(f"""
-    <div class=\"welcome-header\">
-        <h1>👋 Здравствуйте, {st.session_state.client_name}!</h1>
-        <p>Добро пожаловать в личный кабинет</p>
-    </div>
-    """, unsafe_allow_html=True)
+   # Компактное приветствие
+    col_w1, col_w2 = st.columns([3, 1])
+    with col_w1:
+        st.markdown(f"""
+        <div style="background: linear-gradient(90deg, rgba(136, 200, 188, 0.1) 0%, transparent 100%); 
+             padding: 1rem 1.5rem; border-radius: 12px; border-left: 3px solid #88c8bc;
+             margin-bottom: 1.5rem;">
+            <div style="color: #2d5a4f; font-size: 1.1rem; font-weight: 600;">
+                👋 Здравствуйте, {st.session_state.client_name}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_w2:
+        st.empty()
 
     # ===== Навигация (радио на стейте) =====
     sections = [
