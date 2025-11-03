@@ -92,14 +92,14 @@ def render_top_bar():
             analytics_service = AnalyticsService()
             total, upcoming, this_month, this_week = analytics_service.get_stats()
             
-            col_stat1, col_stat2, col_stat3 = st.columns(3)
+            col_stat1, col_stat2 = st.columns(2)
+            # with col_stat1:
+            #     st.metric("Всего", total, label_visibility="collapsed")
+            #     st.caption("📋 Всего")
             with col_stat1:
-                st.metric("Всего", total, label_visibility="collapsed")
-                st.caption("📋 Всего")
-            with col_stat2:
                 st.metric("Предстоящих", upcoming, label_visibility="collapsed")
-                st.caption("⏰ Предстоящих")
-            with col_stat3:
+                st.caption("⏰ Предстоящих записей")
+            with col_stat2:
                 if st.button("🚪 Выйти", use_container_width=True, key="admin_logout_top"):
                     # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
                     with st.spinner("🚪 Выход из системы..."):
