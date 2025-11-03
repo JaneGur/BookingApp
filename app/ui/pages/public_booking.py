@@ -208,43 +208,42 @@ def render_step_user_data():
     
     with col_nav1:
         if st.button("⬅️ Назад", use_container_width=True):
-            st.session_state.booking_step = 1
-            st.rerun()
+            with st.spinner("Пожалуйста, подождите..."):
+                st.session_state.booking_step = 1
+                st.rerun()
     
     with col_nav2:
         if st.button("Далее ➡️", use_container_width=True, type="primary"):
-            # Обрезаем случайные пробелы у вводимых полей (не трогаем пароли)
-            client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
-            client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
-            client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
-            client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
-            notes_clean = notes.strip() if isinstance(notes, str) else notes
-            # Валидация
-            if not client_name_clean or not client_phone_clean:
-                st.error("❌ Заполните имя и телефон")
-            else:
-                phone_valid, phone_msg = validate_phone(client_phone_clean)
-                if not phone_valid:
-                    st.error(phone_msg)
+            with st.spinner("Пожалуйста, подождите..."):
+                # Обрезаем случайные пробелы у вводимых полей (не трогаем пароли)
+                client_name_clean = client_name.strip() if isinstance(client_name, str) else client_name
+                client_phone_clean = client_phone.strip() if isinstance(client_phone, str) else client_phone
+                client_email_clean = client_email.strip() if isinstance(client_email, str) else client_email
+                client_telegram_clean = client_telegram.strip() if isinstance(client_telegram, str) else client_telegram
+                notes_clean = notes.strip() if isinstance(notes, str) else notes
+                        # Валидация
+                if not client_name_clean or not client_phone_clean:
+                    st.error("❌ Заполните имя и телефон")
                 else:
-                    if client_email_clean:
-                        email_valid, email_msg = validate_email(client_email_clean)
-                        if not email_valid:
-                            st.error(email_msg)
-                            return
-
-                    # Сохраняем данные (chat_id для гостей не собираем — подключение через личный кабинет)
-                    st.session_state.booking_form_data.update({
-                        'name': client_name_clean,
-                        'phone': client_phone_clean,
-                        'email': client_email_clean,
-                        'telegram': client_telegram_clean,
-                        'notes': notes_clean
-                    })
-
-                    st.session_state.booking_step = 3
-                    st.rerun()
-
+                    phone_valid, phone_msg = validate_phone(client_phone_clean)
+                    if not phone_valid:
+                        st.error(phone_msg)
+                    else:
+                        if client_email_clean:
+                            email_valid, email_msg = validate_email(client_email_clean)
+                            if not email_valid:
+                                st.error(email_msg)
+                                return
+                        # Сохраняем данные (chat_id для гостей не собираем — подключение через личный кабинет)
+                        st.session_state.booking_form_data.update({
+                            'name': client_name_clean,
+                            'phone': client_phone_clean,
+                            'email': client_email_clean,
+                            'telegram': client_telegram_clean,
+                            'notes': notes_clean
+                        })
+                        st.session_state.booking_step = 3
+                        st.rerun()
 def render_step_confirmation(booking_service):
     """Шаг 3: Подтверждение заказа"""
     st.markdown("### ✅ Шаг 3: Подтверждение заказа")
@@ -309,54 +308,56 @@ def render_step_confirmation(booking_service):
     
     with col_nav1:
         if st.button("⬅️ Назад", use_container_width=True):
-            st.session_state.booking_step = 2
-            st.rerun()
+            with st.spinner("Пожалуйста, подождите..."):
+                st.session_state.booking_step = 2
+                st.rerun()
     
     with col_nav2:
         if st.button("✅ Создать заказ", use_container_width=True, type="primary"):
-            # Создаем заказ
-            booking_data = {
-                'client_name': form_data.get('name'),
-                'client_phone': form_data.get('phone'),
-                'client_email': form_data.get('email', ''),
-                'client_telegram': form_data.get('telegram', ''),
-                'booking_date': str(form_data.get('date')),
-                'booking_time': form_data.get('time'),
-                'notes': form_data.get('notes', ''),
-                'telegram_chat_id': form_data.get('chat_id', ''),
-                'status': 'pending_payment'
-            }
-            
-            success, message = booking_service.create_booking(booking_data)
-            
-            if success:
-                # Сохраняем контекст для следующего шага
-                st.session_state.booking_form_data['booking_created'] = True
+            with st.spinner("Создаём заказ..."):
+                # Создаем заказ
+                booking_data = {
+                    'client_name': form_data.get('name'),
+                    'client_phone': form_data.get('phone'),
+                    'client_email': form_data.get('email', ''),
+                    'client_telegram': form_data.get('telegram', ''),
+                    'booking_date': str(form_data.get('date')),
+                    'booking_time': form_data.get('time'),
+                    'notes': form_data.get('notes', ''),
+                    'telegram_chat_id': form_data.get('chat_id', ''),
+                    'status': 'pending_payment'
+                }
                 
-                # Автоназначаем продукт
-                if chosen:
-                    try:
-                        row = booking_service.get_booking_by_datetime(
-                            form_data.get('phone'),
-                            str(form_data.get('date')),
-                            form_data.get('time')
-                        )
-                        if row:
-                            booking_service.set_booking_payment_info(
-                                row['id'], 
-                                chosen.get('id'), 
-                                float(chosen.get('price_rub') or 0)
+                success, message = booking_service.create_booking(booking_data)
+                
+                if success:
+                    # Сохраняем контекст для следующего шага
+                    st.session_state.booking_form_data['booking_created'] = True
+                    
+                    # Автоназначаем продукт
+                    if chosen:
+                        try:
+                            row = booking_service.get_booking_by_datetime(
+                                form_data.get('phone'),
+                                str(form_data.get('date')),
+                                form_data.get('time')
                             )
-                            st.session_state.booking_form_data['booking_id'] = row['id']
-                    except Exception:
-                        pass
-                
-                st.balloons()
-                st.success("✅ Заказ успешно создан!")
-                st.session_state.booking_step = 4
-                st.rerun()
-            else:
-                st.error(message)
+                            if row:
+                                booking_service.set_booking_payment_info(
+                                    row['id'], 
+                                    chosen.get('id'), 
+                                    float(chosen.get('price_rub') or 0)
+                                )
+                                st.session_state.booking_form_data['booking_id'] = row['id']
+                        except Exception:
+                            pass
+                    
+                    st.balloons()
+                    st.success("✅ Заказ успешно создан!")
+                    st.session_state.booking_step = 4
+                    st.rerun()
+                else:
+                    st.error(message)
 
 def render_step_authorization(booking_service, client_service):
     """Шаг 4: Авторизация и переход в личный кабинет"""

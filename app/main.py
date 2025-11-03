@@ -206,8 +206,9 @@ def render_footer():
         # Кнопка входа администратора только для гостей
         if not st.session_state.client_logged_in and not st.session_state.admin_logged_in:
             if st.button("👩‍💼 Для администратора", use_container_width=True, key="admin_link_footer"):
-                st.session_state.show_admin_login_footer = True
-                st.rerun()
+                with st.spinner("Пожалуйста, подождите..."):
+                    st.session_state.show_admin_login_footer = True
+                    st.rerun()
             # Показываем форму для пароля прямо под кнопкой
             if st.session_state.get('show_admin_login_footer'):
                 st.markdown("### 👩‍💼 Вход для администратора")
@@ -218,24 +219,26 @@ def render_footer():
                         submit = st.form_submit_button("Войти", use_container_width=True)
                     with col_cancel:
                         if st.form_submit_button("Отмена", use_container_width=True):
-                            st.session_state.show_admin_login_footer = False
-                            st.rerun()
+                            with st.spinner("Пожалуйста, подождите..."):
+                                st.session_state.show_admin_login_footer = False
+                                st.rerun()
                     if submit:
-                        auth_manager = AuthManager()
-                        if password and auth_manager.check_admin_password(password):
-                            from core.session_state import admin_login
-                            admin_login()
-                            st.success("✅ Добро пожаловать!")
-                            try:
-                                at = auth_manager.issue_admin_token()
-                                if at:
-                                    _set_query_param("at", at)
-                            except Exception:
-                                pass
-                            st.session_state.show_admin_login_footer = False
-                            st.rerun()
-                        elif password:
-                            st.error("❌ Неверный пароль!")
+                        with st.spinner("Проверяем пароль администратора..."):
+                            auth_manager = AuthManager()
+                            if password and auth_manager.check_admin_password(password):
+                                from core.session_state import admin_login
+                                admin_login()
+                                st.success("✅ Добро пожаловать!")
+                                try:
+                                    at = auth_manager.issue_admin_token()
+                                    if at:
+                                        _set_query_param("at", at)
+                                except Exception:
+                                    pass
+                                st.session_state.show_admin_login_footer = False
+                                st.rerun()
+                            elif password:
+                                st.error("❌ Неверный пароль!")
 
 def main():
     """Главная функция приложения"""
