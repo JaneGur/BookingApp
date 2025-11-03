@@ -559,3 +559,46 @@ def render_pay_later_tab(form_data):
         if st.button("🔐 Войти сейчас", use_container_width=True):
             st.session_state.show_client_login = True
             st.rerun()
+
+    # Если пользователь нажал "Войти сейчас" — показываем форму входа прямо здесь
+    if st.session_state.get("show_client_login"):
+        st.markdown("---")
+        st.markdown("#### Вход в личный кабинет")
+        with st.form("pay_later_login_form"):
+            login_phone = st.text_input(
+                "📱 Номер телефона",
+                placeholder="+7 (999) 123-45-67",
+                key="pay_later_login_phone"
+            )
+            login_password = st.text_input("🔑 Пароль", type="password", key="pay_later_login_password")
+            submitted = st.form_submit_button("🔐 Войти", use_container_width=True)
+            if submitted:
+                if not login_phone or not login_password:
+                    st.error("❌ Заполните все поля")
+                else:
+                    login_phone_clean = login_phone.strip() if isinstance(login_phone, str) else login_phone
+                    from core.auth import AuthManager
+                    auth_manager = AuthManager()
+                    if auth_manager.verify_client_password(login_phone_clean, login_password):
+                        from services.client_service import ClientService
+                        client_service = ClientService()
+                        profile = client_service.get_profile(login_phone_clean)
+                        client_info = profile or client_service.get_client_info(login_phone_clean)
+                        if client_info:
+                            st.session_state.client_logged_in = True
+                            st.session_state.client_phone = login_phone_clean
+                            st.session_state.client_name = client_info['client_name']
+                            st.session_state.client_nav = "👁️ Мои ближайшие консультации"
+                            try:
+                                token = auth_manager.issue_remember_token(login_phone_clean)
+                                if token:
+                                    st.query_params["rt"] = token
+                            except Exception:
+                                pass
+                            st.success("✅ Вход выполнен! Перенаправляем...")
+                            st.session_state.show_client_login = False
+                            st.rerun()
+                        else:
+                            st.error("❌ Не удалось найти профиль клиента")
+                    else:
+                        st.error("❌ Неверный номер телефона или пароль")
