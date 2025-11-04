@@ -261,9 +261,34 @@ def load_custom_css():
             animation: fadeIn 0.3s ease;
         }
         
-        /* ===== RESPONSIVE ===== */
+   /* ===== RESPONSIVE ===== */
 
         @media (max-width: 768px) {
+            /* Сбалансированные колонки на мобильных */
+            [data-testid="column"] {
+                width: 100% !important;
+                flex: 100% !important;
+            }
+            
+            /* Информационная панель на мобильных */
+            .info-section {
+                padding: 1.25rem !important;
+                margin-bottom: 1rem !important;
+            }
+            
+            .info-section h4 {
+                font-size: 1.05rem !important;
+                margin-bottom: 1rem !important;
+            }
+            
+            .info-content {
+                font-size: 0.92rem !important;
+            }
+            
+            .info-icon {
+                font-size: 1.15rem !important;
+            }
+            
             /* Make large headings more compact on phones */
             h1 {
                 font-size: 1.25rem;

@@ -12,7 +12,7 @@ from .components.step_authorization import render_step_authorization
 from .utils.scroll_helpers import render_scroll_script
 
 def render_public_booking():
-    """Отрисовка публичной страницы записи с мобильной оптимизацией"""
+    """Отрисовка публичной страницы записи с улучшенным балансом"""
     
     # Инициализация состояния шагов
     if 'booking_step' not in st.session_state:
@@ -23,7 +23,8 @@ def render_public_booking():
     booking_service = BookingService()
     client_service = ClientService()
     
-    col1, col2 = st.columns([2, 1])
+    # Более сбалансированное соотношение: 3:2 для лучшей читаемости
+    col1, col2 = st.columns([3, 2], gap="large")
     
     with col1:
         render_booking_steps(booking_service, client_service)

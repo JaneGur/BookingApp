@@ -81,7 +81,6 @@ def render_client_cabinet():
 
 # ========== РАСШИРЕННАЯ ГЛАВНАЯ СТРАНИЦА ==========
 
-@st.fragment
 def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info):
     """УЛУЧШЕННЫЙ дашборд с полной информацией о консультациях"""
     
