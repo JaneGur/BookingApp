@@ -24,7 +24,7 @@ def render_admin_panel():
     settings_service = SettingsService()
     notification_service = NotificationService()
     
-    tabs = st.tabs(["📋 Записи", "👥 Клиенты", "⚙️ Настройки", "🚫 Блокировки", "📊 Аналитика", "🔔 Уведомления", "💳 Продукты", "📄 Документы"])
+    tabs = st.tabs(["📋 Записи", "👥 Клиенты", "💳 Продукты", "🚫 Блокировки", "📊 Аналитика", "⚙️ Настройки"])
     
     with tabs[0]:
         render_bookings_tab(booking_service)
@@ -33,7 +33,7 @@ def render_admin_panel():
         render_clients_tab(client_service, booking_service)
     
     with tabs[2]:
-        render_settings_tab(settings_service)
+        render_products_tab()
     
     with tabs[3]:
         render_blocking_tab()
@@ -42,13 +42,7 @@ def render_admin_panel():
         render_analytics_tab(analytics_service)
     
     with tabs[5]:
-        render_notifications_tab(notification_service)
-
-    with tabs[6]:
-        render_products_tab()
-
-    with tabs[7]:
-        render_documents_tab()
+        render_settings_tab(settings_service, notification_service)
 
 def render_bookings_tab(booking_service):
     """Вкладка управления записями"""
@@ -625,128 +619,11 @@ def render_client_booking_history(booking, booking_service):
         
         st.markdown("---")
 
-def render_documents_tab():
-    """Загрузка и управление документами (политика, оферты и пр.)"""
-    st.markdown("### 📄 Документы")
-    sb_read = db_manager.get_client()
-    sb_write = db_manager.get_service_client()
-    if sb_read is None:
-        st.error("❌ Нет подключения к базе данных")
-        return
-    st.markdown("#### ⬆️ Загрузить документ")
-    with st.form("upload_doc_form"):
-        colu1, colu2 = st.columns([2,1])
-        with colu1:
-            title = st.text_input("Название документа", placeholder="Политика конфиденциальности")
-        with colu2:
-            doc_type = st.selectbox("Тип", ["policy", "offer", "other"], index=0)
-        file = st.file_uploader("Файл", type=["pdf", "doc", "docx", "txt", "rtf"], accept_multiple_files=False)
-        up_submit = st.form_submit_button("📤 Загрузить", width='stretch')
-    if up_submit:
-        if not file or not title:
-            st.error("❌ Укажите название и выберите файл")
-        else:
-            import uuid
-            ext = (file.name.split(".")[-1] or "bin").lower()
-            key = f"{uuid.uuid4().hex}.{ext}"
-            try:
-                bucket = sb_write.storage.from_("public_docs") if sb_write else None
-                # Некоторые версии клиента ожидают snake_case ключи и строковый upsert
-                if bucket is None:
-                    raise Exception("service client is not configured")
-                bucket.upload(key, file.getvalue(), {"content_type": (file.type or "application/octet-stream"), "upsert": "true"})
-                public_url = bucket.get_public_url(key)
-            except Exception as e:
-                st.error(f"❌ Хранилище недоступно или не создано: {e}")
-                with st.expander("📄 Инструкция по созданию bucket public_docs", expanded=False):
-                    st.code(
-                        """
-                        -- Выполните в Supabase SQL (Storage):
-                        -- В разделе Storage создайте bucket с именем public_docs и включите Public.
-                        -- Затем перезапустите приложение.
-                        """,
-                        language="sql"
-                    )
-                public_url = None
-            if public_url:
-                try:
-                    (sb_write or sb_read).table('documents').insert({
-                        'title': title.strip(),
-                        'doc_type': doc_type,
-                        'filename': file.name,
-                        'storage_key': key,
-                        'url': public_url,
-                        'is_active': True,
-                        'created_at': now_msk().isoformat(),
-                        'updated_at': now_msk().isoformat()
-                    }).execute()
-                    st.success("✅ Документ загружен")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Ошибка записи в таблицу documents: {e}")
-                    with st.expander("📄 Инструкция по созданию таблицы documents", expanded=False):
-                        st.code(
-                            """
-                            CREATE TABLE IF NOT EXISTS documents (
-                              id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                              title TEXT NOT NULL,
-                              doc_type TEXT,
-                              filename TEXT,
-                              storage_key TEXT,
-                              url TEXT,
-                              is_active BOOLEAN DEFAULT TRUE,
-                              created_at TIMESTAMPTZ DEFAULT NOW(),
-                              updated_at TIMESTAMPTZ DEFAULT NOW()
-                            );
-                            CREATE INDEX IF NOT EXISTS documents_active_idx ON documents(is_active);
-                            """,
-                            language="sql"
-                        )
-    st.markdown("---")
-    st.markdown("#### 📚 Список документов")
-    try:
-        rows = sb_read.table('documents').select('*').order('created_at', desc=True).execute().data or []
-    except Exception as e:
-        rows = []
-        st.error(f"❌ Не удалось получить список документов: {e}")
-    if not rows:
-        st.info("Документы отсутствуют")
-        return
-    for d in rows:
-        with st.expander(f"{d.get('title')} — {d.get('doc_type','other')}", expanded=False):
-            st.write(f"Файл: {d.get('filename','—')}")
-            if d.get('url'):
-                st.link_button("Открыть", url=d['url'], width='stretch')
-            col_da, col_db = st.columns([1,1])
-            with col_da:
-                new_active = st.checkbox("Активен", value=bool(d.get('is_active')), key=f"doc_active_{d['id']}")
-                if st.button("💾 Сохранить", key=f"doc_save_{d['id']}", width='stretch'):
-                    try:
-                        (sb_write or sb_read).table('documents').update({'is_active': new_active, 'updated_at': now_msk().isoformat()}).eq('id', d['id']).execute()
-                        st.success("✅ Сохранено")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Ошибка сохранения: {e}")
-            with col_db:
-                if st.button("🗑️ Удалить", key=f"doc_del_{d['id']}", width='stretch'):
-                    try:
-                        # Пытаемся удалить файл из хранилища
-                        if d.get('storage_key'):
-                            try:
-                                (sb_write or sb_read).storage.from_("public_docs").remove([d['storage_key']])
-                            except Exception:
-                                pass
-                        (sb_write or sb_read).table('documents').delete().eq('id', d['id']).execute()
-                        st.success("✅ Удалено")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Ошибка удаления: {e}")
-
-def render_settings_tab(settings_service):
-    """Вкладка настроек"""
+def render_settings_tab(settings_service, notification_service):
+    """Вкладка настроек системы"""
     st.markdown("### ⚙️ Настройки системы")
     
-    settings_tabs = st.tabs(["📅 Расписание", "ℹ️ Информационная панель", "🔐 Безопасность"])
+    settings_tabs = st.tabs(["📅 Расписание", "ℹ️ Информационная панель", "🔐 Безопасность", "🔔 Уведомления", "📄 Документы"])
     
     with settings_tabs[0]:
         render_schedule_settings(settings_service)
@@ -756,6 +633,12 @@ def render_settings_tab(settings_service):
 
     with settings_tabs[2]:
         render_security_settings()
+
+    with settings_tabs[3]:
+        render_notifications_tab(notification_service)
+
+    with settings_tabs[4]:
+        render_documents_tab()
 
 def render_schedule_settings(settings_service):
     """Настройки расписания"""
@@ -868,6 +751,7 @@ def render_info_settings(settings_service):
                 render_info_panel()
 
 def render_security_settings():
+    """Настройки безопасности"""
     st.markdown("#### 🔐 Смена пароля администратора")
     with st.form("admin_change_password_form"):
         col1, col2 = st.columns(2)
@@ -905,6 +789,226 @@ def render_security_settings():
         else:
             st.error("❌ Не удалось обновить пароль администратора")
 
+def render_notifications_tab(notification_service):
+    """Вкладка уведомлений в настройках"""
+    st.markdown("#### 🔔 Настройка уведомлений")
+    
+    # Статус бота
+    from config.settings import config
+    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_ADMIN_CHAT_ID:
+        st.success("✅ Бот настроен и готов к работе")
+        
+        # Информация о боте
+        try:
+            bot_info = notification_service.bot.get_bot_info()
+            if bot_info:
+                col_info1, col_info2 = st.columns(2)
+                with col_info1:
+                    st.write(f"**🤖 Имя бота:** {bot_info.get('first_name', 'Неизвестно')}")
+                    st.write(f"**👤 Username:** @{bot_info.get('username', 'Неизвестно')}")
+                with col_info2:
+                    st.write(f"**💬 Chat ID админа:** {config.TELEGRAM_ADMIN_CHAT_ID}")
+                    st.write(f"**🆔 ID бота:** {bot_info.get('id', 'Неизвестно')}")
+        except Exception:
+            st.info("ℹ️ Информация о боте недоступна")
+        
+        # Тестирование уведомлений
+        st.markdown("---")
+        st.markdown("##### 🧪 Тестирование уведомлений")
+        
+        test_message = st.text_area("Тестовое сообщение", 
+                                  "✅ Система уведомлений работает корректно!",
+                                  height=100)
+        
+        col_test1, col_test2 = st.columns(2)
+        with col_test1:
+            if st.button("📤 Тест админу", use_container_width=True):
+                if notification_service.bot.send_to_admin(test_message):
+                    st.success("✅ Тест отправлен админу!")
+                else:
+                    st.error("❌ Ошибка отправки")
+        
+        with col_test2:
+            test_chat_id = st.text_input("Chat ID для теста", placeholder="123456789")
+            if st.button("📤 Тест клиенту", use_container_width=True, disabled=not test_chat_id):
+                try:
+                    if notification_service.bot.send_message(test_chat_id, test_message):
+                        st.success("✅ Тест отправлен клиенту!")
+                    else:
+                        st.error("❌ Ошибка отправки клиенту")
+                except Exception as e:
+                    st.error(f"❌ Ошибка: {e}")
+        
+        # Статистика (заглушка для будущей реализации)
+        st.markdown("---")
+        st.markdown("##### 📊 Статистика уведомлений")
+        st.info("📈 Статистика отправки уведомлений появится в будущих обновлениях")
+        
+    else:
+        st.error("❌ Telegram бот не настроен")
+        st.markdown("""
+        ### 📝 Инструкция по настройке:
+        
+        1. **Создайте бота** через [@BotFather](https://t.me/BotFather) в Telegram
+        2. **Получите токен** и укажите его в переменной окружения `TELEGRAM_BOT_TOKEN`
+        3. **Узнайте ваш Chat ID** и укажите его в `TELEGRAM_ADMIN_CHAT_ID`
+        4. **Перезапустите приложение**
+        
+        После настройки бот будет автоматически отправлять уведомления о новых записях и напоминания.
+        """)
+
+def render_documents_tab():
+    """Загрузка и управление документами в настройках"""
+    st.markdown("#### 📄 Управление документами")
+    
+    sb_read = db_manager.get_client()
+    sb_write = db_manager.get_service_client()
+    if sb_read is None:
+        st.error("❌ Нет подключения к базе данных")
+        return
+    
+    # Форма загрузки документа
+    st.markdown("##### ⬆️ Загрузить документ")
+    with st.form("upload_doc_form"):
+        colu1, colu2 = st.columns([2,1])
+        with colu1:
+            title = st.text_input("Название документа *", placeholder="Политика конфиденциальности")
+        with colu2:
+            doc_type_map = {
+                "policy": "📄 Политика",
+                "offer": "📝 Оферта", 
+                "instruction": "📋 Инструкция",
+                "other": "📎 Другое"
+            }
+            doc_type = st.selectbox("Тип", list(doc_type_map.keys()), 
+                                  format_func=lambda x: doc_type_map[x], index=0)
+        
+        file = st.file_uploader("Файл *", type=["pdf", "doc", "docx", "txt", "rtf"], 
+                               accept_multiple_files=False,
+                               help="Поддерживаемые форматы: PDF, DOC, DOCX, TXT, RTF")
+        
+        up_submit = st.form_submit_button("📤 Загрузить документ", use_container_width=True)
+    
+    if up_submit:
+        if not file or not title:
+            st.error("❌ Укажите название и выберите файл")
+        else:
+            import uuid
+            ext = (file.name.split(".")[-1] or "bin").lower()
+            key = f"{uuid.uuid4().hex}.{ext}"
+            try:
+                bucket = sb_write.storage.from_("public_docs") if sb_write else None
+                if bucket is None:
+                    raise Exception("service client is not configured")
+                bucket.upload(key, file.getvalue(), {"content_type": (file.type or "application/octet-stream"), "upsert": "true"})
+                public_url = bucket.get_public_url(key)
+            except Exception as e:
+                st.error(f"❌ Хранилище недоступно или не создано: {e}")
+                with st.expander("📄 Инструкция по созданию bucket public_docs", expanded=False):
+                    st.code(
+                        """
+                        -- Выполните в Supabase SQL (Storage):
+                        -- В разделе Storage создайте bucket с именем public_docs и включите Public.
+                        -- Затем перезапустите приложение.
+                        """,
+                        language="sql"
+                    )
+                public_url = None
+            
+            if public_url:
+                try:
+                    (sb_write or sb_read).table('documents').insert({
+                        'title': title.strip(),
+                        'doc_type': doc_type,
+                        'filename': file.name,
+                        'storage_key': key,
+                        'url': public_url,
+                        'is_active': True,
+                        'created_at': now_msk().isoformat(),
+                        'updated_at': now_msk().isoformat()
+                    }).execute()
+                    st.success("✅ Документ загружен")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Ошибка записи в таблицу documents: {e}")
+                    with st.expander("📄 Инструкция по созданию таблицы documents", expanded=False):
+                        st.code(
+                            """
+                            CREATE TABLE IF NOT EXISTS documents (
+                              id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                              title TEXT NOT NULL,
+                              doc_type TEXT,
+                              filename TEXT,
+                              storage_key TEXT,
+                              url TEXT,
+                              is_active BOOLEAN DEFAULT TRUE,
+                              created_at TIMESTAMPTZ DEFAULT NOW(),
+                              updated_at TIMESTAMPTZ DEFAULT NOW()
+                            );
+                            CREATE INDEX IF NOT EXISTS documents_active_idx ON documents(is_active);
+                            """,
+                            language="sql"
+                        )
+
+    st.markdown("---")
+    st.markdown("##### 📚 Список документов")
+    
+    try:
+        rows = sb_read.table('documents').select('*').order('created_at', desc=True).execute().data or []
+    except Exception as e:
+        rows = []
+        st.error(f"❌ Не удалось получить список документов: {e}")
+    
+    if not rows:
+        st.info("📭 Документы отсутствуют")
+        return
+    
+    for d in rows:
+        doc_type_display = doc_type_map.get(d.get('doc_type', 'other'), "📎 Другое")
+        with st.expander(f"{doc_type_display} — {d.get('title')}", expanded=False):
+            col_d1, col_d2 = st.columns([3, 1])
+            
+            with col_d1:
+                st.write(f"**Файл:** {d.get('filename', '—')}")
+                if d.get('created_at'):
+                    created_date = format_date(d['created_at'][:10]) if 'T' in d['created_at'] else format_date(d['created_at'])
+                    st.caption(f"📅 Загружен: {created_date}")
+                
+                if d.get('url'):
+                    st.link_button("🔗 Открыть документ", url=d['url'], use_container_width=True)
+            
+            with col_d2:
+                new_active = st.checkbox("Активен", value=bool(d.get('is_active')), 
+                                       key=f"doc_active_{d['id']}")
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("💾 Сохранить", key=f"doc_save_{d['id']}", use_container_width=True):
+                        try:
+                            (sb_write or sb_read).table('documents').update({
+                                'is_active': new_active, 
+                                'updated_at': now_msk().isoformat()
+                            }).eq('id', d['id']).execute()
+                            st.success("✅ Сохранено")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Ошибка сохранения: {e}")
+                
+                with col_btn2:
+                    if st.button("🗑️ Удалить", key=f"doc_del_{d['id']}", use_container_width=True):
+                        try:
+                            # Пытаемся удалить файл из хранилища
+                            if d.get('storage_key'):
+                                try:
+                                    (sb_write or sb_read).storage.from_("public_docs").remove([d['storage_key']])
+                                except Exception:
+                                    pass
+                            (sb_write or sb_read).table('documents').delete().eq('id', d['id']).execute()
+                            st.success("✅ Удалено")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Ошибка удаления: {e}")
+
 def render_blocking_tab():
     """Вкладка блокировок"""
     st.markdown("### 🚫 Управление блокировками")
@@ -926,9 +1030,9 @@ def render_blocking_tab():
         reason_day = st.text_input("💬 Причина (необязательно)", placeholder="Отпуск, выходной, командировка…", key="block_day_reason")
         col1, col2 = st.columns([1, 1])
         with col1:
-            submit_block_day = st.form_submit_button("🚫 Заблокировать день", width='stretch')
+            submit_block_day = st.form_submit_button("🚫 Заблокировать день", use_container_width=True)
         with col2:
-            cancel_block_day = st.form_submit_button("❌ Отмена", width='stretch')
+            cancel_block_day = st.form_submit_button("❌ Отмена", use_container_width=True)
 
         if submit_block_day:
             try:
@@ -979,9 +1083,9 @@ def render_blocking_tab():
 
         col_bt1, col_bt2 = st.columns([1, 1])
         with col_bt1:
-            submit_block_time = st.form_submit_button("🚫 Заблокировать слот", width='stretch')
+            submit_block_time = st.form_submit_button("🚫 Заблокировать слот", use_container_width=True)
         with col_bt2:
-            cancel_block_time = st.form_submit_button("❌ Отмена", width='stretch')
+            cancel_block_time = st.form_submit_button("❌ Отмена", use_container_width=True)
 
         if submit_block_time:
             try:
@@ -1042,7 +1146,7 @@ def render_blocking_tab():
                 reason = b.get('reason')
                 st.write(f"{date_txt}{' — ' + reason if reason else ''}")
             with col_d2:
-                if st.button("🗑️ Удалить", key=f"del_day_{b['id']}", width='stretch'):
+                if st.button("🗑️ Удалить", key=f"del_day_{b['id']}", use_container_width=True):
                     try:
                         # Сохраняем данные для Undo
                         st.session_state.last_deleted_block = b
@@ -1051,7 +1155,7 @@ def render_blocking_tab():
                         with undo_col1:
                             st.success("✅ Удалено. Можно отменить действие ниже.")
                         with undo_col2:
-                            if st.button("↩️ Undo", key=f"undo_day_{b['id']}", width='stretch'):
+                            if st.button("↩️ Undo", key=f"undo_day_{b['id']}", use_container_width=True):
                                 payload = {
                                     'block_date': b.get('block_date'),
                                     'block_time': None
@@ -1084,7 +1188,7 @@ def render_blocking_tab():
             with col_t2:
                 st.empty()
             with col_t3:
-                if st.button("🗑️ Удалить", key=f"del_time_{b['id']}", width='stretch'):
+                if st.button("🗑️ Удалить", key=f"del_time_{b['id']}", use_container_width=True):
                     try:
                         st.session_state.last_deleted_block = b
                         (sb_write or sb_read).table('blocked_slots').delete().eq('id', b['id']).execute()
@@ -1092,7 +1196,7 @@ def render_blocking_tab():
                         with undo_col1:
                             st.success("✅ Удалено. Можно отменить действие ниже.")
                         with undo_col2:
-                            if st.button("↩️ Undo", key=f"undo_time_{b['id']}", width='stretch'):
+                            if st.button("↩️ Undo", key=f"undo_time_{b['id']}", use_container_width=True):
                                 payload = {
                                     'block_date': b.get('block_date'),
                                     'block_time': b.get('block_time')
@@ -1168,36 +1272,8 @@ def render_analytics_tab(analytics_service):
     else:
         st.info("Данных по продуктам за выбранный период нет")
 
-def render_notifications_tab(notification_service):
-    """Вкладка уведомлений"""
-    st.markdown("### 🔔 Система уведомлений")
-    
-    # Статус бота
-    st.markdown("#### 🤖 Статус Telegram бота")
-    
-    from config.settings import config
-    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_ADMIN_CHAT_ID:
-        st.success("✅ Бот настроен и готов к работе")
-        
-        # Тестирование
-        st.markdown("#### 🧪 Тестирование уведомлений")
-        
-        test_message = st.text_area("Тестовое сообщение", 
-                                  "✅ Система уведомлений работает корректно!")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📤 Тест админу", use_container_width=True):
-                if notification_service.bot.send_to_admin(test_message):
-                    st.success("✅ Тест отправлен админу!")
-                else:
-                    st.error("❌ Ошибка отправки")
-        
-        with col2:
-            test_chat_id = st.text_input("Chat ID для теста", placeholder="123456789")
-
 def render_products_tab():
-    """Управление продуктами для оплаты (первая консультация, разовая, пакеты)"""
+    """Управление продуктами для оплаты"""
     st.markdown("### 💳 Продукты оплаты")
 
     sb_read = db_manager.get_client()
