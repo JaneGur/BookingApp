@@ -5,8 +5,16 @@ from datetime import timedelta
 from utils.datetime_helpers import now_msk
 
 def render_analytics_tab(analytics_service):
+    
     """Вкладка аналитики"""
-    st.markdown("### 📊 Аналитика")
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        📊 Аналитика
+    </h3>
+    """, unsafe_allow_html=True)
     
     total, upcoming, this_month, this_week = analytics_service.get_stats()
     col1, col2, col3, col4 = st.columns(4)

@@ -11,8 +11,14 @@ from ..components.client_components import render_client_booking_history
 from ..components.ui_components import render_client_stats
 
 def render_clients_tab(client_service, booking_service):
-    """Улучшенная вкладка управления клиентами"""
-    st.markdown("### 👥 База клиентов")
+    """Вкладка управления клиентами"""
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        👥 База клиентов
+    </h3>
+    """, unsafe_allow_html=True)
     
     # ===== ВЕРХНЯЯ ПАНЕЛЬ С ДЕЙСТВИЯМИ =====
     render_top_actions()

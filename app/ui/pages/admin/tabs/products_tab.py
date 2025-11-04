@@ -3,8 +3,15 @@ from core.database import db_manager
 from utils.datetime_helpers import now_msk
 
 def render_products_tab():
+    
     """Управление продуктами для оплаты"""
-    st.markdown("### 💳 Продукты оплаты")
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        💳 Продукты оплаты
+    </h3>
+    """, unsafe_allow_html=True)
 
     sb_read = db_manager.get_client()
     sb_write = db_manager.get_service_client()

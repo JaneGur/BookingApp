@@ -5,8 +5,16 @@ from utils.formatters import format_date
 from datetime import datetime
 
 def render_blocking_tab():
+    
     """Вкладка блокировок"""
-    st.markdown("### 🚫 Управление блокировками")
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        🚫 Управление блокировками
+    </h3>
+    """, unsafe_allow_html=True)
 
     sb_read = db_manager.get_client()
     sb_write = db_manager.get_service_client()

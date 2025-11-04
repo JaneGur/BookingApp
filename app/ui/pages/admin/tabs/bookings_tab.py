@@ -11,15 +11,21 @@ from ..components.booking_components import render_order_details
 from ..components.ui_components import render_stats_metrics  # Добавьте этот импорт
 
 def render_bookings_tab(booking_service):
-    """Вкладка управления записями"""
-    st.markdown("### 📋 Управление")
-    st.caption("Всё время — по Москве (MSK)")
-    inner_tabs = st.tabs(["📒 Записи", "🧾 Заказы"])
+     """Вкладка управления записями"""
+     st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        📋 Управление записями
+    </h3>
+    """, unsafe_allow_html=True)
+     st.caption("Всё время — по Москве (MSK)")
+     inner_tabs = st.tabs(["📒 Записи", "🧾 Заказы"])
 
-    with inner_tabs[0]:
+     with inner_tabs[0]:
         render_bookings_section(booking_service)
     
-    with inner_tabs[1]:
+     with inner_tabs[1]:
         render_orders_section(booking_service)
 
 def render_bookings_section(booking_service):

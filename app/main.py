@@ -48,7 +48,14 @@ def render_top_bar():
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown("## 🌿 Запись на онлайн-консультацию")
+        st.markdown("""
+        <div style="padding: 0.5rem 0;">
+            <h2 style="margin: 0; font-size: 1.75rem; font-weight: 700; color: #2d5a4f; 
+                 letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🌿</span> Запись на онлайн-консультацию
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
         if st.session_state.client_logged_in:
