@@ -5,7 +5,7 @@ from core.database import db_manager
 from core.session_state import init_session_state
 from core.auth import AuthManager
 from ui.pages.public_booking import render_public_booking
-from ui.pages.admin_panel import render_admin_panel
+from ui.pages.admin import render_admin_panel
 from ui.pages.client_cabinet import render_client_cabinet
 from ui.pages.auth_forms import render_auth_forms
 
