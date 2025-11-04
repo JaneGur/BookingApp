@@ -1,5 +1,4 @@
 import streamlit as st
-import time
 from datetime import datetime, timedelta
 from config.constants import BOOKING_RULES
 from services.booking_service import BookingService
@@ -15,18 +14,18 @@ from utils.validators import validate_email
 from utils.datetime_helpers import now_msk
 
 def render_client_cabinet():
-    """Отрисовка личного кабинета клиента"""
+    """ОПТИМИЗИРОВАННЫЙ личный кабинет - использование @st.fragment"""
     st.title("👤 Личный кабинет")
     
     booking_service = BookingService()
     client_service = ClientService()
     notification_service = NotificationService()
     
-    # Профиль: сначала пробуем из client_profiles, иначе из последней записи
+    # Профиль
     profile = client_service.get_profile(st.session_state.client_phone)
     client_info = profile or client_service.get_client_info(st.session_state.client_phone)
     
-   # Компактное приветствие
+    # Компактное приветствие
     col_w1, col_w2 = st.columns([3, 1])
     with col_w1:
         st.markdown(f"""
@@ -41,81 +40,44 @@ def render_client_cabinet():
     with col_w2:
         st.empty()
 
-    # ===== Навигация (радио на стейте) =====
+    # ===== Навигация =====
     sections = [
         "🏠 Главная", "📅 Записаться на консультацию", "👁️ Мои ближайшие консультации",
         "📊 История консультаций", "👤 Профиль", "💬 Уведомления"
     ]
 
-    # Синхронизация с существующим sidebar (реагируем только на изменение выбора в нём)
-    sidebar_to_top = {
-        "👁️ Мои ближайшие консультации": "👁️ Мои ближайшие консультации",
-        "👤 Профиль": "👤 Профиль",
-        "💬 Уведомления": "💬 Уведомления",
-        "📅 Записаться на консультацию": "📅 Записаться на консультацию",
-        "📊 История записей": "📊 История",
-    }
-    top_to_sidebar = {
-        "👁️ Мои ближайшие консультации": "👁️ Мои ближайшие консультации",
-        "👤 Профиль": "👤 Профиль",
-        "💬 Уведомления": "💬 Уведомления",
-        "📅 Записаться на консультацию": "📅 Записаться на консультацию",
-        "📊 История": "📊 История записей",
-        "🏠 Главная": None,
-    }
-
-    sidebar_selected = st.session_state.get("client_tabs")
-    prev_sidebar_selected = st.session_state.get("_sidebar_prev")
-    # Если пришли из публичной страницы с флагом — один раз фиксируем Главную и не даём сайдбару перезаписать
-    if st.session_state.get('client_go_home_once'):
-        st.session_state.client_nav = "🏠 Главная"
-        st.session_state._sidebar_prev = sidebar_selected
-        st.session_state.client_go_home_once = False
-    elif sidebar_selected != prev_sidebar_selected:
-        st.session_state._sidebar_prev = sidebar_selected
-        if sidebar_selected in sidebar_to_top:
-            st.session_state.client_nav = sidebar_to_top[sidebar_selected]
-            st.rerun()
-
     if "client_nav" not in st.session_state:
         st.session_state.client_nav = "🏠 Главная"
 
-    # Верхняя навигация
+    # Верхняя навигация БЕЗ лишних rerun
     nav_col = st.container()
     with nav_col:
-        selected = st.radio("Навигация", sections, index=sections.index(st.session_state.client_nav), horizontal=True)
+        selected = st.radio("Навигация", sections, index=sections.index(st.session_state.client_nav), horizontal=True, key="client_nav_radio")
         if selected != st.session_state.client_nav:
             st.session_state.client_nav = selected
-            # Обновляем sidebar, чтобы он соответствовал верхней навигации
-            mapped = top_to_sidebar.get(selected)
-            if mapped:
-                st.session_state.current_tab = mapped
-            st.rerun()
+            # Единственный rerun на смену вкладки
 
-    # Роутер секций
+    # ===== ИСПОЛЬЗОВАНИЕ @st.fragment для изоляции секций =====
     route = st.session_state.client_nav
     if route == "🏠 Главная":
-        # Одноразовый баннер после создания заказа из публичной страницы
-        try:
-            ctx = st.session_state.get('client_pending_created_ctx')
-            if ctx:
-                st.success("✅ Заказ создан и ожидает оплаты. Найдите его ниже или перейдите в 'Мои ближайшие консультации'.")
-                st.session_state.client_pending_created_ctx = None
-        except Exception:
-            pass
-        render_dashboard(booking_service, client_service, notification_service, client_info)
+        render_dashboard_fragment(booking_service, client_service, notification_service, client_info)
     elif route == "📅 Записаться на консультацию":
-        render_new_booking_section(booking_service, client_info, notification_service)
+        render_new_booking_fragment(booking_service, client_info, notification_service)
     elif route == "👁️ Мои ближайшие консультации":
-        render_current_booking(booking_service, notification_service)
+        render_current_booking_fragment(booking_service, notification_service)
     elif route == "📊 История консультаций":
-        render_booking_history(booking_service)
+        render_booking_history_fragment(booking_service)
     elif route == "👤 Профиль":
-        render_profile_section(client_service, client_info)
+        render_profile_fragment(client_service, client_info)
     elif route == "💬 Уведомления":
         render_telegram_section()
 
-def render_dashboard(booking_service, client_service, notification_service, client_info):
+
+# ========== ФРАГМЕНТИРОВАННЫЕ СЕКЦИИ (обновляются изолированно) ==========
+
+@st.fragment
+def render_dashboard_fragment(booking_service, client_service, notification_service, client_info):
+    """Dashboard с изолированным обновлением"""
     upcoming = booking_service.get_upcoming_client_booking(st.session_state.client_phone)
     all_bookings = booking_service.get_client_bookings(st.session_state.client_phone)
     total = len(all_bookings) if hasattr(all_bookings, "__len__") else (all_bookings.shape[0] if hasattr(all_bookings, "shape") else 0)
@@ -133,32 +95,24 @@ def render_dashboard(booking_service, client_service, notification_service, clie
     st.markdown("#### Быстрые действия")
     ac1, ac2, ac3 = st.columns(3)
     with ac1:
-        if st.button("📅 Записаться на консультацию", type="primary", width='stretch'):
-            with st.spinner("⏳ Загрузка формы записи..."):
-                time.sleep(0.1)
-                st.session_state.client_nav = "📅 Записаться на консультацию"
-                st.rerun()
+        if st.button("📅 Записаться на консультацию", type="primary", width='stretch', key="dash_new_booking"):
+            st.session_state.client_nav = "📅 Записаться на консультацию"
+            st.rerun()
     with ac2:
         if not telegram_connected:
-            if st.button("🔔 Подключить Telegram", width='stretch'):
-                with st.spinner("⏳ Загрузка настроек уведомлений..."):
-                    time.sleep(0.1)
-                    st.session_state.client_nav = "💬 Уведомления"
-                    st.rerun()
-        else:
-            if st.button("👁️ Мои ближайшие консультации", width='stretch'):
-                with st.spinner("⏳ Загрузка записей..."):
-                    time.sleep(0.1)
-                    st.session_state.client_nav = "👁️ Мои ближайшие консультации"
-                    st.rerun()
-    with ac3:
-        if st.button("👤 Профиль", width='stretch'):
-            with st.spinner("⏳ Загрузка профиля..."):
-                time.sleep(0.1)
-                st.session_state.client_nav = "👤 Профиль"
+            if st.button("🔔 Подключить Telegram", width='stretch', key="dash_telegram"):
+                st.session_state.client_nav = "💬 Уведомления"
                 st.rerun()
+        else:
+            if st.button("👁️ Мои ближайшие консультации", width='stretch', key="dash_current"):
+                st.session_state.client_nav = "👁️ Мои ближайшие консультации"
+                st.rerun()
+    with ac3:
+        if st.button("👤 Профиль", width='stretch', key="dash_profile"):
+            st.session_state.client_nav = "👤 Профиль"
+            st.rerun()
 
-    # Заголовок с бейджем при наличии неоплаченного заказа
+    # Ближайшая запись
     badge = " <span style='background:#FFE08A;color:#614a00;border-radius:999px;padding:2px 8px;font-size:12px;'>Новый неоплаченный заказ</span>" if pending_exists and not upcoming else ""
     st.markdown(f"#### Ближайшая запись{badge}", unsafe_allow_html=True)
     if upcoming:
@@ -183,7 +137,6 @@ def render_dashboard(booking_service, client_service, notification_service, clie
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Нет подтверждённых — проверим заказы в ожидании оплаты
         pending = booking_service.get_latest_pending_booking_for_client(st.session_state.client_phone)
         if pending:
             st.warning("🟡 У вас есть неоплаченный заказ. После оплаты запись появится здесь.")
@@ -205,56 +158,21 @@ def render_dashboard(booking_service, client_service, notification_service, clie
                     {prod_line}
                 </div>
                 """, unsafe_allow_html=True)
-                try:
-                    from core.database import db_manager
-                    supabase = db_manager.get_client()
-                    products_all = supabase.table('products').select('*').eq('is_active', True).order('sort_order').execute().data or []
-                except Exception:
-                    products_all = []
-
-                has_paid_first = has_paid_first_consultation_cached(st.session_state.client_phone)
-                def is_first_product(p):
-                    sku = (p.get('sku') or '').upper()
-                    name = (p.get('name') or '').lower()
-                    return sku == 'FIRST_SESSION' or ('перва' in name and 'консультац' in name)
-                filtered = [p for p in (products_all or []) if not (has_paid_first and is_first_product(p))]
-                featured = [p for p in filtered if p.get('is_featured')]
-                chosen = (featured[0] if featured else (filtered[0] if filtered else None))
-
-                # Применяем к заказу, если ещё не применено
-                try:
-                    row = pending
-                    if row and chosen and not row.get('product_id'):
-                        booking_service.set_booking_payment_info(row['id'], chosen.get('id'), float(chosen.get('price_rub') or 0))
-                except Exception:
-                    pass
-
-                # Показываем назначенный продукт
-                try:
-                    row = pending
-                    pid = row.get('product_id')
-                    amt = row.get('amount')
-                    pmap = get_product_map()
-                    pname = pmap.get(pid, {}).get('name') if pid is not None else None
-                    pname_disp = pname or (f"ID {pid}" if pid is not None else '—')
-                    st.success(f"🧾 Продукт для заказа: {pname_disp}{f' — {amt} ₽' if amt is not None else ''}")
-                except Exception:
-                    pass
-
-                if st.button("Перейти к оплате", type="primary", width='stretch', key="btn_go_pay_pending"):
+                if st.button("Перейти к оплате", type="primary", width='stretch', key="btn_go_pay_pending_dash"):
                     st.info("Оплата будет подключена позже. Сейчас это заглушка.")
         else:
             st.info("📭 Нет предстоящих консультаций")
 
-def render_current_booking(booking_service, notification_service):
-    """Отрисовка текущей записи"""
+
+@st.fragment
+def render_current_booking_fragment(booking_service, notification_service):
+    """Текущая запись - изолированный фрагмент"""
     st.markdown("### 👁️ Текущая запись")
     
     upcoming = booking_service.get_upcoming_client_booking(st.session_state.client_phone)
     
     if upcoming:
         time_until = calculate_time_until(upcoming['booking_date'], upcoming['booking_time'])
-        # Получаем название продукта, если выбран
         prod_line = ""
         try:
             pid = upcoming.get('product_id')
@@ -278,75 +196,45 @@ def render_current_booking(booking_service, notification_service):
         </div>
         """, unsafe_allow_html=True)
 
-        # Если это заказ в ожидании оплаты — автоназначаем продукт (без выбора)
         if str(upcoming.get('status')) == 'pending_payment':
-            try:
-                from core.database import db_manager
-                supabase = db_manager.get_client()
-                products_all = supabase.table('products').select('*').eq('is_active', True).order('sort_order').execute().data or []
-            except Exception:
-                products_all = []
-
-            has_paid_first = has_paid_first_consultation_cached(st.session_state.client_phone)
-            def is_first_product(p):
-                sku = (p.get('sku') or '').upper()
-                name = (p.get('name') or '').lower()
-                return sku == 'FIRST_SESSION' or ('перва' in name and 'консультац' in name)
-            filtered = [p for p in (products_all or []) if not (has_paid_first and is_first_product(p))]
-            featured = [p for p in filtered if p.get('is_featured')]
-            chosen = (featured[0] if featured else (filtered[0] if filtered else None))
-
-            try:
-                if chosen and not upcoming.get('product_id'):
-                    booking_service.set_booking_payment_info(upcoming['id'], chosen.get('id'), float(chosen.get('price_rub') or 0))
-            except Exception:
-                pass
-
-            if st.button("Перейти к оплате", type="primary", width='stretch', key="btn_go_pay_current"):
+            if st.button("Перейти к оплате", type="primary", width='stretch', key="btn_go_pay_current_frag"):
                 st.info("Оплата будет подключена позже. Сейчас это заглушка.")
         
-        # Проверяем подключен ли Telegram
         telegram_connected = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
         if not telegram_connected:
             st.warning("""
             ⚠️ **Вы не получаете напоминания!**
             
-            Подключите Telegram в разделе "💬 Уведомления" чтобы получать:
-            • ⏰ Напоминание за 1 час до консультации
-            • ✅ Подтверждения новых записей
-            • ❌ Уведомления об отменах
+            Подключите Telegram в разделе "💬 Уведомления"
             """)
         
         if time_until.total_seconds() > BOOKING_RULES["MIN_CANCEL_MINUTES"] * 60:
-            if st.button("❌ Отменить запись", type="secondary", width='stretch'):
-                # ДОБАВЛЕН ИНДИКАТОР ЗАГРУЗКИ
-                with st.spinner("❌ Отмена записи..."):
-                    time.sleep(0.2)
-                    chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
-                    success, message = booking_service.cancel_booking(upcoming['id'], st.session_state.client_phone)
+            if st.button("❌ Отменить запись", type="secondary", width='stretch', key="cancel_booking_frag"):
+                # БЕЗ задержки
+                chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
+                success, message = booking_service.cancel_booking(upcoming['id'], st.session_state.client_phone)
+                
+                if success:
+                    notification_service.bot.notify_booking_cancelled_admin(upcoming)
+                    if chat_id:
+                        notification_service.bot.notify_booking_cancelled_client(chat_id, upcoming)
                     
-                    if success:
-                        notification_service.bot.notify_booking_cancelled_admin(upcoming)
-                        if chat_id:
-                            notification_service.bot.notify_booking_cancelled_client(chat_id, upcoming)
-                        
-                        st.success(message)
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error(message)
-
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
         else:
             st.warning(f"⚠️ Отмена возможна за {BOOKING_RULES['MIN_CANCEL_MINUTES']}+ минут")
     else:
         st.info("📭 Нет предстоящих консультаций")
 
-def render_profile_section(client_service, client_info):
-    """Отрисовка раздела профиля"""
+
+@st.fragment
+def render_profile_fragment(client_service, client_info):
+    """Профиль - изолированный фрагмент"""
     st.markdown("### 👤 Профиль")
     
-    # Показываем форму всегда, даже если информации ещё нет
-    with st.form("profile_form"):
+    with st.form("profile_form_frag"):
         col1, col2 = st.columns(2)
         with col1:
             base_name = (client_info.get('client_name') if client_info else st.session_state.client_name) or ''
@@ -361,8 +249,7 @@ def render_profile_section(client_service, client_info):
         col_pass1, col_pass2 = st.columns(2)
         with col_pass1:
             current_password = st.text_input("🔑 Текущий пароль", type="password")
-            new_password = st.text_input("🆕 Новый пароль", type="password", 
-                                       help="Пароль должен быть не менее 6 символов")
+            new_password = st.text_input("🆕 Новый пароль", type="password")
         with col_pass2:
             confirm_new_password = st.text_input("🔑 Подтвердите новый пароль", type="password")
         
@@ -377,7 +264,6 @@ def render_profile_section(client_service, client_info):
             changes_made = False
             messages = []
             
-            # Обрезаем пробелы и валидация email
             new_name_clean = new_name.strip() if isinstance(new_name, str) else new_name
             new_email_clean = new_email.strip() if isinstance(new_email, str) else new_email
             new_telegram_clean = new_telegram.strip() if isinstance(new_telegram, str) else new_telegram
@@ -387,7 +273,7 @@ def render_profile_section(client_service, client_info):
                 if not email_valid:
                     st.error(email_msg)
                     return
-            # Сохраняем профиль в client_profiles (мягко, если таблицы нет)
+            
             saved = client_service.upsert_profile(
                 st.session_state.client_phone,
                 new_name_clean,
@@ -398,7 +284,6 @@ def render_profile_section(client_service, client_info):
                 messages.append("✅ Профиль сохранён")
                 changes_made = True
 
-            # Проверяем смену пароля
             if current_password or new_password or confirm_new_password:
                 from core.auth import AuthManager
                 auth_manager = AuthManager()
@@ -423,20 +308,22 @@ def render_profile_section(client_service, client_info):
                     st.success(msg)
                 st.rerun()
 
-def render_new_booking_section(booking_service, client_info, notification_service):
-    """Отрисовка раздела новой записи"""
+
+@st.fragment
+def render_new_booking_fragment(booking_service, client_info, notification_service):
+    """Новая запись - изолированный фрагмент (БЕЗ задержек)"""
     st.markdown("### 📅 Записаться на консультацию")
 
-    # Если есть неоплаченный заказ — показать баннер и ссылку перейти к оплате
     try:
         pending = booking_service.get_latest_pending_booking_for_client(st.session_state.client_phone)
     except Exception:
         pending = None
+    
     if pending:
         st.warning("🟡 У вас уже создан новый заказ и он ожидает оплаты.")
         col_goto, _ = st.columns([1,3])
         with col_goto:
-            if st.button("Перейти к оплате", type="primary", use_container_width=True, key="go_to_pay_from_new_booking"):
+            if st.button("Перейти к оплате", type="primary", use_container_width=True, key="go_to_pay_from_new_booking_frag"):
                 st.session_state.client_nav = "👁️ Мои ближайшие консультации"
                 st.rerun()
     
@@ -449,10 +336,12 @@ def render_new_booking_section(booking_service, client_info, notification_servic
             from datetime import timedelta
             selected_date = st.date_input("Дата", min_value=now_msk().date(),
                                         max_value=now_msk().date() + timedelta(days=30),
-                                        format="DD.MM.YYYY")
+                                        format="DD.MM.YYYY",
+                                        key="booking_date_frag")
+            
+            # КЭШИРОВАННЫЙ метод - быстрее
             available_slots = booking_service.get_available_slots(str(selected_date))
             
-            # Адаптация рендеринга слотов
             if not available_slots:
                 st.warning("😔 На выбранную дату нет свободных слотов")
             else:
@@ -463,7 +352,7 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                 selected_time = None
                 for idx, time_slot in enumerate(available_slots):
                     with cols[idx % 4]:
-                        if st.button(f"🕐 {time_slot}", key=f"client_slot_{time_slot}", 
+                        if st.button(f"🕐 {time_slot}", key=f"client_slot_frag_{time_slot}", 
                                     use_container_width=True, type="primary"):
                             selected_time = time_slot
                             st.session_state.selected_time = time_slot
@@ -474,8 +363,7 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                 if selected_time:
                     st.success(f"✅ {selected_date.strftime('%d.%m.%Y')} в {selected_time}")
                     
-                    with st.form("quick_booking"):
-                        # Плашка с продуктом по умолчанию (только в форме заказа)
+                    with st.form("quick_booking_frag"):
                         try:
                             from core.database import db_manager
                             supabase = db_manager.get_client()
@@ -491,9 +379,7 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                         render_consent_line()
                         
                         if submit:
-                            with st.spinner("✨ Создание заказа..."):
-                              time.sleep(0.3)
-                            # Получаем chat_id для уведомления
+                            # БЕЗ задержки - прямое создание
                             chat_id = notification_service.get_client_telegram_chat_id(st.session_state.client_phone)
                             
                             booking_data = {
@@ -511,13 +397,11 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                             success, message = booking_service.create_booking(booking_data)
                             if success:
                                 st.balloons()
-                                st.info("🟡 Заказ создан и ожидает оплаты. После оплаты он появится в разделе 'Текущая запись'.")
-                                # Отправляем уведомление (как заказ) и показываем секцию оплаты после rerun
+                                st.info("🟡 Заказ создан и ожидает оплаты.")
                                 try:
                                     notification_service.notify_booking_created(booking_data, chat_id)
                                 except Exception:
                                     pass
-                                # Сохраняем контекст для секции оплаты и перерисовываем
                                 st.session_state._pending_payment_ctx = {
                                     'date': str(selected_date),
                                     'time': selected_time
@@ -525,60 +409,11 @@ def render_new_booking_section(booking_service, client_info, notification_servic
                                 st.rerun()
                             else:
                                 st.error(message)
-                    
-                    # Секция оплаты вне формы — если есть созданный заказ
-                    ctx = st.session_state.get('_pending_payment_ctx')
-                    if ctx and ctx.get('date') == str(selected_date) and ctx.get('time') == selected_time:
-                        st.markdown("---")
-                        st.markdown("#### 💳 Оплата заказа")
-                        try:
-                            from core.database import db_manager
-                            supabase = db_manager.get_client()
-                            products_all = supabase.table('products').select('*').eq('is_active', True).order('sort_order').execute().data
-                        except Exception:
-                            products_all = []
-                        # Фильтрация "первой консультации" если уже была оплачена (кэш)
-                        has_paid_first = has_paid_first_consultation_cached(st.session_state.client_phone)
-                        def is_first_product(p):
-                            sku = (p.get('sku') or '').upper()
-                            name = (p.get('name') or '').lower()
-                            return sku == 'FIRST_SESSION' or ('перва' in name and 'консультац' in name)
-                        products = [p for p in (products_all or []) if not (has_paid_first and is_first_product(p))]
-                        featured = [p for p in products if p.get('is_featured')]
-                        chosen = (featured[0] if featured else (products[0] if products else None))
 
-                        # Присваиваем выбранный продукт
-                        booking_row = booking_service.get_booking_by_datetime(
-                            st.session_state.client_phone, ctx['date'], ctx['time']
-                        )
-                        if booking_row and chosen:
-                            try:
-                                booking_service.set_booking_payment_info(booking_row['id'], chosen.get('id'), float(chosen.get('price_rub') or 0))
-                            except Exception:
-                                pass
-                        # Показываем выбранный
-                        if booking_row:
-                            pid = booking_row.get('product_id')
-                            amt = booking_row.get('amount')
-                            pmap = get_product_map()
-                            pname = pmap.get(pid, {}).get('name') if pid is not None else None
-                            pname_disp = pname or (f"ID {pid}" if pid is not None else '—')
-                            st.info(f"🧾 Продукт для заказа: {pname_disp}{f' — {amt} ₽' if amt is not None else ''}")
-                        col_pay1, col_pay2 = st.columns([1,1])
-                        with col_pay1:
-                            if st.button("Перейти к оплате", type="primary", width='stretch'):
-                                st.info("Оплата будет подключена позже. Сейчас это заглушка.")
-                        with col_pay2:
-                            if st.button("Оплатить позже", width='stretch'):
-                                st.session_state.client_nav = "🏠 Главная"
-                                st.session_state._pending_payment_ctx = None
-                                st.rerun()
-        
-        # with col2:
-        #     render_info_panel()
 
-def render_booking_history(booking_service):
-    """Отрисовка истории записей"""
+@st.fragment
+def render_booking_history_fragment(booking_service):
+    """История записей - изолированный фрагмент"""
     st.markdown("### 📊 История записей")
     
     bookings = booking_service.get_client_bookings(st.session_state.client_phone)
@@ -588,7 +423,6 @@ def render_booking_history(booking_service):
             from config.constants import STATUS_DISPLAY
             status_info = STATUS_DISPLAY.get(row['status'], STATUS_DISPLAY['confirmed'])
             date_formatted = format_date(row['booking_date'])
-            # Строка продукта по записи
             prod_html = ""
             try:
                 pid = row.get('product_id') if hasattr(row, 'get') else (row['product_id'] if 'product_id' in row else None)
