@@ -14,8 +14,7 @@ from utils.validators import validate_email
 from utils.datetime_helpers import now_msk
 
 def render_client_cabinet():
-    """ОПТИМИЗИРОВАННЫЙ личный кабинет - 5 вкладок вместо 6"""
-    st.title("👤 Личный кабинет")
+    """ОПТИМИЗИРОВАННЫЙ личный кабинет в едином стиле с админкой"""
     
     booking_service = BookingService()
     client_service = ClientService()
@@ -24,65 +23,58 @@ def render_client_cabinet():
     profile = client_service.get_profile(st.session_state.client_phone)
     client_info = profile or client_service.get_client_info(st.session_state.client_phone)
     
-    # Компактное приветствие
-    col_w1, col_w2 = st.columns([3, 1])
-    with col_w1:
-        st.markdown(f"""
-        <div style="background: linear-gradient(90deg, rgba(136, 200, 188, 0.1) 0%, transparent 100%); 
-             padding: 1rem 1.5rem; border-radius: 12px; border-left: 3px solid #88c8bc;
-             margin-bottom: 1.5rem;">
-            <div style="color: #2d5a4f; font-size: 1.1rem; font-weight: 600;">
-                👋 Здравствуйте, {st.session_state.client_name}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_w2:
-        st.empty()
+    # Единый стиль заголовка как в админке
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%); 
+         padding: 2rem 2.5rem; border-radius: 16px; margin-bottom: 2rem;
+         box-shadow: 0 4px 20px rgba(136, 200, 188, 0.25);">
+        <h1 style="color: white; font-size: 1.75rem; font-weight: 700; margin: 0; 
+             letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 2rem;">👤</span>
+            Личный кабинет
+        </h1>
+        <p style="color: rgba(255, 255, 255, 0.9); margin: 0.5rem 0 0 0; font-size: 1rem;">
+            Здравствуйте, {st.session_state.client_name}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ===== ОПТИМИЗИРОВАННАЯ НАВИГАЦИЯ (5 вкладок) =====
-    sections = [
-        "🏠 Главная",
-        "📅 Новая запись",
-        "📊 История",
-        "👤 Профиль",
-        "💬 Уведомления"
-    ]
-
+    # ===== НАВИГАЦИЯ В СТИЛЕ АДМИНКИ (табы) =====
     if "client_nav" not in st.session_state:
         st.session_state.client_nav = "🏠 Главная"
-
-    # Навигация
-    nav_col = st.container()
-    with nav_col:
-        selected = st.radio(
-            "Навигация", 
-            sections, 
-            index=sections.index(st.session_state.client_nav), 
-            horizontal=True,
-            key="client_nav_radio",
-            label_visibility="collapsed"
-        )
-        if selected != st.session_state.client_nav:
-            st.session_state.client_nav = selected
-
-    # Роутинг
-    route = st.session_state.client_nav
-    if route == "🏠 Главная":
+    
+    tabs = st.tabs(["🏠 Главная", "📅 Новая запись", "📊 История", "👤 Профиль", "💬 Уведомления"])
+    
+    # Роутинг по табам
+    with tabs[0]:
         render_dashboard_enhanced(booking_service, client_service, notification_service, client_info)
-    elif route == "📅 Новая запись":
+    
+    with tabs[1]:
         render_new_booking_fragment(booking_service, client_info, notification_service)
-    elif route == "📊 История":
+    
+    with tabs[2]:
         render_all_bookings_fragment(booking_service, notification_service)
-    elif route == "👤 Профиль":
+    
+    with tabs[3]:
         render_profile_fragment(client_service, client_info)
-    elif route == "💬 Уведомления":
+    
+    with tabs[4]:
         render_telegram_section()
 
 
 # ========== РАСШИРЕННАЯ ГЛАВНАЯ СТРАНИЦА ==========
 
 def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info):
-    """УЛУЧШЕННЫЙ дашборд с полной информацией о консультациях"""
+    """УЛУЧШЕННЫЙ дашборд в едином стиле"""
+    
+    # Заголовок в стиле админки
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        🏠 Главная
+    </h3>
+    """, unsafe_allow_html=True)
     
     # Получаем данные
     upcoming = booking_service.get_upcoming_client_booking(st.session_state.client_phone)
@@ -128,40 +120,32 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
     col_a1, col_a2, col_a3 = st.columns(3)
     
     with col_a1:
-        if st.button("📅 Записаться на консультацию", type="primary", use_container_width=True, key="dash_new_booking"):
-            st.session_state.client_nav = "📅 Новая запись"
-            st.rerun()
+        st.button("📅 Записаться", type="primary", use_container_width=True, key="dash_new_booking",
+                  help="Перейти к записи на консультацию")
     
     with col_a2:
-        if st.button("📊 Посмотреть историю", use_container_width=True, key="dash_history"):
-            st.session_state.client_nav = "📊 История"
-            st.rerun()
+        st.button("📊 История", use_container_width=True, key="dash_history",
+                  help="Посмотреть все записи")
     
     with col_a3:
         if not telegram_connected:
-            if st.button("🔔 Подключить уведомления", use_container_width=True, key="dash_telegram"):
-                st.session_state.client_nav = "💬 Уведомления"
-                st.rerun()
+            st.button("🔔 Уведомления", use_container_width=True, key="dash_telegram",
+                      help="Подключить Telegram")
         else:
-            if st.button("👤 Редактировать профиль", use_container_width=True, key="dash_profile"):
-                st.session_state.client_nav = "👤 Профиль"
-                st.rerun()
+            st.button("👤 Профиль", use_container_width=True, key="dash_profile",
+                      help="Редактировать профиль")
 
     # ===== ПРЕДУПРЕЖДЕНИЯ =====
     if upcoming and not telegram_connected:
         st.markdown("---")
         st.warning("""
-        ⚠️ **Рекомендация:** Подключите Telegram-уведомления, чтобы не пропустить консультацию!
+        ⚠️ **Рекомендация:** Подключите Telegram-уведомления
         
-        Вы будете получать:
-        • ⏰ Напоминание за 1 час до начала
-        • ✅ Подтверждения новых записей
-        • 📋 Изменения статусов
+        📌 Вы будете получать напоминания и подтверждения
         """)
         
-        if st.button("Подключить сейчас", type="secondary", key="dash_connect_tg"):
-            st.session_state.client_nav = "💬 Уведомления"
-            st.rerun()
+        if st.button("Подключить Telegram", type="secondary", key="dash_connect_tg", use_container_width=True):
+            pass  # Переключение через табы автоматическое
 
 
 def render_booking_card_detailed(booking: dict, booking_service, notification_service, 
@@ -242,21 +226,27 @@ def render_booking_card_detailed(booking: dict, booking_service, notification_se
 
 @st.fragment
 def render_all_bookings_fragment(booking_service, notification_service):
-    """Полная история записей с фильтрами и управлением"""
-    st.markdown("### 📊 Все мои записи")
+    """Полная история записей"""
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        📊 История записей
+    </h3>
+    """, unsafe_allow_html=True)
     
     # Получаем все записи
     all_bookings = booking_service.get_client_bookings(st.session_state.client_phone)
     
     if all_bookings.empty:
         st.info("📭 История записей пуста")
-        if st.button("📅 Создать первую запись", type="primary"):
-            st.session_state.client_nav = "📅 Новая запись"
-            st.rerun()
+        if st.button("📅 Создать первую запись", type="primary", use_container_width=True):
+            pass  # Переключение через табы
         return
     
-    # Фильтры
-    col_f1, col_f2 = st.columns([2, 1])
+    # Фильтры в одну строку
+    col_f1, col_f2 = st.columns([3, 1])
     
     with col_f1:
         filter_status = st.multiselect(
@@ -364,8 +354,15 @@ def render_history_booking_card(booking, booking_service, notification_service):
 
 @st.fragment
 def render_new_booking_fragment(booking_service, client_info, notification_service):
-    """Форма новой записи (без изменений из предыдущей версии)"""
-    st.markdown("### 📅 Новая запись")
+    """Форма новой записи в едином стиле"""
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        📅 Новая запись
+    </h3>
+    """, unsafe_allow_html=True)
     
     try:
         pending = booking_service.get_latest_pending_booking_for_client(st.session_state.client_phone)
@@ -373,19 +370,15 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
         pending = None
     
     if pending:
-        st.warning("🟡 У вас уже создан новый заказ и он ожидает оплаты.")
-        col_goto, _ = st.columns([1,3])
-        with col_goto:
-            if st.button("Вернуться на главную", type="primary", use_container_width=True, key="go_to_home_from_new"):
-                st.session_state.client_nav = "🏠 Главная"
-                st.rerun()
+        st.warning("🟡 У вас уже создан заказ, ожидающий оплаты")
+        if st.button("Вернуться на главную", type="primary", use_container_width=True):
+            pass  # Переключение через табы
         return
     
     if booking_service.has_active_booking(st.session_state.client_phone):
-        st.warning("⚠️ У вас уже есть активная запись.")
-        if st.button("Посмотреть на главной", type="primary"):
-            st.session_state.client_nav = "🏠 Главная"
-            st.rerun()
+        st.warning("⚠️ У вас уже есть активная запись")
+        if st.button("Посмотреть на главной", type="primary", use_container_width=True):
+            pass  # Переключение через табы
         return
     
     # Форма записи (код из предыдущей версии)
@@ -467,8 +460,15 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
 
 @st.fragment
 def render_profile_fragment(client_service, client_info):
-    """Профиль (без изменений)"""
-    st.markdown("### 👤 Профиль")
+    """Профиль в едином стиле"""
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        👤 Профиль
+    </h3>
+    """, unsafe_allow_html=True)
     
     with st.form("profile_form_opt"):
         col1, col2 = st.columns(2)
