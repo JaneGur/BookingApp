@@ -11,42 +11,9 @@ from ..components.client_components import render_client_booking_history
 from ..components.ui_components import render_client_stats
 
 def render_clients_tab(client_service, booking_service):
-    """Вкладка управления клиентами"""
-    st.markdown("""
-    <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
-         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
-         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
-        👥 База клиентов
-    </h3>
-    """, unsafe_allow_html=True)
-    
-    # ===== ВЕРХНЯЯ ПАНЕЛЬ С ДЕЙСТВИЯМИ =====
-    render_top_actions()
-    
-    # ===== ФОРМА НОВОЙ ЗАПИСИ (если активирована) =====
-    if st.session_state.get('show_new_booking_form'):
-        render_new_booking_form(client_service, booking_service)
-        st.markdown("---")
-    
-    # ===== ПОИСК И ФИЛЬТРЫ =====
-    search_query, show_only_active = render_search_and_filters()
-    
-    # ===== ЗАГРУЗКА ДАННЫХ =====
-    clients_df = client_service.get_all_clients()
-    
-    if clients_df.empty:
-        render_empty_state()
-        return
-    
-    # ===== ПРИМЕНЕНИЕ ФИЛЬТРОВ =====
-    clients_df = apply_filters(clients_df, search_query, show_only_active)
-    
-    # ===== СТАТИСТИКА =====
-    render_summary_statistics(clients_df)
-    
-    # ===== СПИСОК КЛИЕНТОВ =====
-    st.markdown("---")
-    render_clients_list_enhanced(clients_df, client_service, booking_service)
+    """Компактная вкладка с переходом на профили"""
+    from ..tabs.clients_tab_compact import render_clients_tab_compact
+    render_clients_tab_compact(client_service, booking_service)
 
 
 # ========== КОМПОНЕНТЫ ИНТЕРФЕЙСА ==========
