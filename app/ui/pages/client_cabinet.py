@@ -40,23 +40,32 @@ def render_client_cabinet():
     """, unsafe_allow_html=True)
 
     # ===== НАВИГАЦИЯ В СТИЛЕ АДМИНКИ (табы) =====
-    if "client_nav" not in st.session_state:
-        st.session_state.client_nav = "🏠 Главная"
+    if "client_nav_index" not in st.session_state:
+        st.session_state.client_nav_index = 0
     
-    tabs = st.tabs(["🏠 Главная", "📅 Новая запись", "📊 История", "👤 Профиль", "💬 Уведомления"])
+    # Определяем активную вкладку
+    tab_names = ["🏠 Главная", "📅 Новая запись", "📊 История", "👤 Профиль", "💬 Уведомления"]
+    
+    # Создаем функцию для переключения вкладки
+    def switch_tab(index: int):
+        st.session_state.client_nav_index = index
+        st.rerun()
+    
+    # Создаем табы
+    tabs = st.tabs(tab_names)
     
     # Роутинг по табам
     with tabs[0]:
-        render_dashboard_enhanced(booking_service, client_service, notification_service, client_info)
+        render_dashboard_enhanced(booking_service, client_service, notification_service, client_info, switch_tab)
     
     with tabs[1]:
-        render_new_booking_fragment(booking_service, client_info, notification_service)
+        render_new_booking_fragment(booking_service, client_info, notification_service, switch_tab)
     
     with tabs[2]:
-        render_all_bookings_fragment(booking_service, notification_service)
+        render_all_bookings_fragment(booking_service, notification_service, switch_tab)
     
     with tabs[3]:
-        render_profile_fragment(client_service, client_info)
+        render_profile_fragment(client_service, client_info, switch_tab)
     
     with tabs[4]:
         render_telegram_section()
@@ -64,7 +73,7 @@ def render_client_cabinet():
 
 # ========== РАСШИРЕННАЯ ГЛАВНАЯ СТРАНИЦА ==========
 
-def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info):
+def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info, switch_tab):
     """УЛУЧШЕННЫЙ дашборд в едином стиле"""
     
     # Заголовок в стиле админки
@@ -120,20 +129,24 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
     col_a1, col_a2, col_a3 = st.columns(3)
     
     with col_a1:
-        st.button("📅 Записаться", type="primary", use_container_width=True, key="dash_new_booking",
-                  help="Перейти к записи на консультацию")
+        if st.button("📅 Записаться", type="primary", use_container_width=True, key="dash_new_booking",
+                  help="Перейти к записи на консультацию"):
+            switch_tab(1)
     
     with col_a2:
-        st.button("📊 История", use_container_width=True, key="dash_history",
-                  help="Посмотреть все записи")
+        if st.button("📊 История", use_container_width=True, key="dash_history",
+                  help="Посмотреть все записи"):
+            switch_tab(2)
     
     with col_a3:
         if not telegram_connected:
-            st.button("🔔 Уведомления", use_container_width=True, key="dash_telegram",
-                      help="Подключить Telegram")
+            if st.button("🔔 Уведомления", use_container_width=True, key="dash_telegram",
+                      help="Подключить Telegram"):
+                switch_tab(4)
         else:
-            st.button("👤 Профиль", use_container_width=True, key="dash_profile",
-                      help="Редактировать профиль")
+            if st.button("👤 Профиль", use_container_width=True, key="dash_profile",
+                      help="Редактировать профиль"):
+                switch_tab(3)
 
     # ===== ПРЕДУПРЕЖДЕНИЯ =====
     if upcoming and not telegram_connected:
@@ -145,7 +158,7 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
         """)
         
         if st.button("Подключить Telegram", type="secondary", key="dash_connect_tg", use_container_width=True):
-            pass  # Переключение через табы автоматическое
+            switch_tab(4)
 
 
 def render_booking_card_detailed(booking: dict, booking_service, notification_service, 
@@ -225,7 +238,7 @@ def render_booking_card_detailed(booking: dict, booking_service, notification_se
 # ========== РАСШИРЕННАЯ ИСТОРИЯ (все записи с управлением) ==========
 
 @st.fragment
-def render_all_bookings_fragment(booking_service, notification_service):
+def render_all_bookings_fragment(booking_service, notification_service, switch_tab):
     """Полная история записей"""
     
     st.markdown("""
@@ -242,7 +255,7 @@ def render_all_bookings_fragment(booking_service, notification_service):
     if all_bookings.empty:
         st.info("📭 История записей пуста")
         if st.button("📅 Создать первую запись", type="primary", use_container_width=True):
-            pass  # Переключение через табы
+            switch_tab(1)
         return
     
     # Фильтры в одну строку
@@ -353,7 +366,7 @@ def render_history_booking_card(booking, booking_service, notification_service):
 # ========== ОСТАЛЬНЫЕ ФРАГМЕНТЫ БЕЗ ИЗМЕНЕНИЙ ==========
 
 @st.fragment
-def render_new_booking_fragment(booking_service, client_info, notification_service):
+def render_new_booking_fragment(booking_service, client_info, notification_service, switch_tab):
     """Форма новой записи в едином стиле"""
     
     st.markdown("""
@@ -372,13 +385,13 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
     if pending:
         st.warning("🟡 У вас уже создан заказ, ожидающий оплаты")
         if st.button("Вернуться на главную", type="primary", use_container_width=True):
-            pass  # Переключение через табы
+            switch_tab(0)
         return
     
     if booking_service.has_active_booking(st.session_state.client_phone):
         st.warning("⚠️ У вас уже есть активная запись")
         if st.button("Посмотреть на главной", type="primary", use_container_width=True):
-            pass  # Переключение через табы
+            switch_tab(0)
         return
     
     # Форма записи (код из предыдущей версии)
@@ -452,14 +465,16 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                                 notification_service.notify_booking_created(booking_data, chat_id)
                             except Exception:
                                 pass
-                            st.session_state.client_nav = "🏠 Главная"
-                            st.rerun()
+                            # Переключаемся на главную после успеха
+                            import time
+                            time.sleep(1)
+                            switch_tab(0)
                         else:
                             st.error(message)
 
 
 @st.fragment
-def render_profile_fragment(client_service, client_info):
+def render_profile_fragment(client_service, client_info, switch_tab):
     """Профиль в едином стиле"""
     
     st.markdown("""
@@ -497,8 +512,64 @@ def render_profile_fragment(client_service, client_info):
         render_consent_line()
         
         if save_profile:
-            # Логика сохранения (без изменений)
-            pass
+            # Валидация
+            if not new_name:
+                st.error("❌ Имя обязательно для заполнения")
+                return
+            
+            if new_email:
+                email_valid, email_msg = validate_email(new_email)
+                if not email_valid:
+                    st.error(email_msg)
+                    return
+            
+            # Обработка смены пароля
+            password_changed = False
+            if current_password or new_password or confirm_new_password:
+                if not all([current_password, new_password, confirm_new_password]):
+                    st.error("❌ Заполните все поля для смены пароля")
+                    return
+                
+                if new_password != confirm_new_password:
+                    st.error("❌ Новые пароли не совпадают")
+                    return
+                
+                if len(new_password) < 6:
+                    st.error("❌ Новый пароль должен быть не менее 6 символов")
+                    return
+                
+                from core.auth import AuthManager
+                auth = AuthManager()
+                
+                if not auth.verify_client_password(st.session_state.client_phone, current_password):
+                    st.error("❌ Неверный текущий пароль")
+                    return
+                
+                if auth.create_client_password(st.session_state.client_phone, new_password):
+                    password_changed = True
+                else:
+                    st.error("❌ Ошибка смены пароля")
+                    return
+            
+            # Обновление профиля
+            if client_service.upsert_profile(
+                st.session_state.client_phone,
+                new_name,
+                new_email,
+                new_telegram
+            ):
+                st.session_state.client_name = new_name
+                
+                if password_changed:
+                    st.success("✅ Профиль обновлен и пароль изменен!")
+                else:
+                    st.success("✅ Профиль обновлен!")
+                
+                import time
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("❌ Ошибка обновления профиля")
 
 # @st.fragment
 # def render_booking_history_fragment(booking_service):
