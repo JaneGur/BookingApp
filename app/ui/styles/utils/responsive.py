@@ -1,9 +1,41 @@
 def get_responsive_styles():
     return """
     @media (max-width: 768px) {
+        /* КРИТИЧНО: Убираем лишние wrapper-контейнеры */
+        .main .block-container {
+            padding: 1rem 0.5rem !important;
+            max-width: 100% !important;
+        }
+        
+        /* Убираем огромные вертикальные отступы у вложенных div */
+        [data-testid="stVerticalBlock"] > div:not([class]) {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Компактные колонки */
         [data-testid="column"] {
             width: 100% !important;
             flex: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Убираем padding у wrapper div */
+        [data-testid="stVerticalBlock"] > div > div:not([class*="st-"]) {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Компактные формы */
+        [data-testid="stForm"] {
+            padding: 0.75rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Компактные expander */
+        [data-testid="stExpander"] {
+            margin-bottom: 0.5rem !important;
         }
         
         .info-section {
@@ -24,57 +56,72 @@ def get_responsive_styles():
             font-size: 1.15rem !important;
         }
         
-        /* Make large headings more compact on phones */
+        /* Компактные заголовки */
         h1 {
-            font-size: 1.25rem;
-            margin-bottom: 0.4rem;
+            font-size: 1.25rem !important;
+            margin-bottom: 0.4rem !important;
+            padding-top: 0.5rem !important;
         }
 
         h2 {
-            font-size: 1.05rem;
-            margin-bottom: 0.35rem;
+            font-size: 1.05rem !important;
+            margin-bottom: 0.35rem !important;
+            padding-top: 0.4rem !important;
         }
 
         h3 {
-            font-size: 0.98rem;
-            margin-bottom: 0.3rem;
+            font-size: 0.98rem !important;
+            margin-bottom: 0.3rem !important;
+            padding-top: 0.3rem !important;
         }
 
         h4 {
-            font-size: 0.95rem;
-            margin-bottom: 0.25rem;
+            font-size: 0.95rem !important;
+            margin-bottom: 0.25rem !important;
+            padding-top: 0.2rem !important;
         }
 
-        /* Tighter welcome header on small screens */
+        /* Компактный welcome header */
         .welcome-header {
-            padding: 1.2rem 1rem;
+            padding: 1.2rem 1rem !important;
+            margin-bottom: 1rem !important;
         }
 
         .welcome-header h1 {
-            font-size: 1.6rem;
+            font-size: 1.6rem !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .welcome-header p {
-            font-size: 1rem;
+            font-size: 1rem !important;
+            margin-top: 0.5rem !important;
         }
 
-        /* Reduce inner paddings for cards */
+        /* Компактные карточки */
         .booking-card, .action-card {
-            padding: 1rem;
+            padding: 1rem !important;
+            margin-bottom: 0.75rem !important;
         }
 
+        /* Компактные табы */
         .stTabs [data-baseweb="tab"] {
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.85rem !important;
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.25rem !important;
         }
 
-        /* Mobile heading overrides */
+        /* Общие overrides для всех элементов Streamlit */
         [class*="st-emotion-cache"] h1,
         .stMarkdown h1,
         [data-testid="stHeading"] h1 {
             font-size: 1.25rem !important;
             line-height: 1.15 !important;
             margin-bottom: 0.4rem !important;
+            padding-top: 0.5rem !important;
         }
 
         [class*="st-emotion-cache"] h2,
@@ -82,6 +129,7 @@ def get_responsive_styles():
             font-size: 1.05rem !important;
             line-height: 1.12 !important;
             margin-bottom: 0.35rem !important;
+            padding-top: 0.4rem !important;
         }
 
         [class*="st-emotion-cache"] h3,
@@ -89,6 +137,7 @@ def get_responsive_styles():
             font-size: 0.98rem !important;
             line-height: 1.1 !important;
             margin-bottom: 0.3rem !important;
+            padding-top: 0.3rem !important;
         }
 
         [class*="st-emotion-cache"] h4,
@@ -96,16 +145,10 @@ def get_responsive_styles():
             font-size: 0.95rem !important;
             line-height: 1.08 !important;
             margin-bottom: 0.25rem !important;
+            padding-top: 0.2rem !important;
         }
 
-        /* Welcome header mobile */
-        [class*="st-emotion-cache"] .welcome-header h1,
-        .welcome-header h1 {
-            font-size: 1.6rem !important;
-            margin-bottom: 0.35rem !important;
-        }
-
-        /* Telegram and info cards */
+        /* Telegram/info карточки */
         [data-testid="stHeading"] h1,
         [data-testid="stHeading"] h2,
         [data-testid="stHeading"] h3,
@@ -123,10 +166,37 @@ def get_responsive_styles():
             margin-bottom: 0.25rem !important;
         }
 
-        /* Metric values */
+        /* Компактные метрики */
         [data-testid="stMetricValue"],
         [class*="st-emotion-cache"] [data-testid="stMetricValue"] {
             font-size: 1.15rem !important;
+        }
+        
+        [data-testid="stMetric"] {
+            padding: 0.75rem !important;
+        }
+        
+        /* Убираем избыточные вертикальные отступы */
+        .element-container {
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Компактные кнопки */
+        .stButton > button {
+            padding: 0.5rem 1rem !important;
+            font-size: 0.9rem !important;
+        }
+        
+        /* Компактные inputs */
+        .stTextInput > div > div,
+        .stTextArea > div > div,
+        .stSelectbox > div > div {
+            padding: 0.5rem !important;
+        }
+        
+        /* Убираем лишние gap между элементами */
+        [data-testid="stVerticalBlock"] {
+            gap: 0.5rem !important;
         }
     }
     """
