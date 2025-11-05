@@ -28,3 +28,30 @@ DEFAULT_SETTINGS = {
     'info_contacts': '📞 Контакты:\n📱 +7 (999) 123-45-67\n📧 hello@psychologist.ru\n🌿 psychologist.ru',
     'info_additional': ''
 }
+
+STATUS_DISPLAY = {
+    'pending_payment': {
+        'text': '🟡 Ожидает оплаты',
+        'emoji': '🟡',
+        'color': '#f59e0b',
+        'bg_color': '#fffbeb'
+    },
+    'confirmed': {
+        'text': '✅ Подтверждён',
+        'emoji': '✅', 
+        'color': '#10b981',
+        'bg_color': '#ecfdf5'
+    },
+    'completed': {
+        'text': '✅ Завершён',
+        'emoji': '✅',
+        'color': '#059669', 
+        'bg_color': '#ecfdf5'
+    },
+    'cancelled': {
+        'text': '❌ Отменён',
+        'emoji': '❌',
+        'color': '#ef4444',
+        'bg_color': '#fef2f2'
+    }
+}
