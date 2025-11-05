@@ -6,7 +6,13 @@ from core.database import db_manager
 def render_step_confirmation(booking_service):
     """Шаг 3: Подтверждение с прокруткой к кнопке"""
     st.markdown('<div id="step3-form"></div>', unsafe_allow_html=True)
-    st.markdown("### ✅ Шаг 3: Подтверждение заказа")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+                  margin-bottom: 1.4rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 ✅ Шаг 3: Подтверждение заказа
+             </h2>
+    """, unsafe_allow_html=True)
     
     form_data = st.session_state.booking_form_data
     
@@ -26,7 +32,13 @@ def render_step_confirmation(booking_service):
          border: 1px solid rgba(136, 200, 188, 0.25); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
     """, unsafe_allow_html=True)
     
-    st.markdown("#### 📋 Детали записи")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+                  margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 📋 Детали записи
+             </h2>
+    """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     

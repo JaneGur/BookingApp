@@ -13,7 +13,7 @@ from ..components.ui_components import render_client_stats
 def render_clients_tab(client_service, booking_service):
     """Вкладка управления клиентами"""
     st.markdown("""
-    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+    <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
          margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
          border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
         👥 База клиентов
@@ -57,6 +57,7 @@ def render_top_actions():
     
     with col1:
         st.markdown("#### 📋 Быстрые действия")
+        
     
     with col2:
         if st.button("🔄 Обновить", use_container_width=True, key="refresh_clients"):

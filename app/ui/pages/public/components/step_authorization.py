@@ -5,7 +5,13 @@ from .auth_components import render_login_tab, render_registration_tab, render_p
 def render_step_authorization(booking_service, client_service):
     """Шаг 4: Авторизация с якорями для вкладок"""
     st.markdown('<div id="step4-form"></div>', unsafe_allow_html=True)
-    st.markdown("### 🔐 Шаг 4: Авторизация")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+                  margin-bottom: 1.4rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 🔐 Шаг 4: Авторизация
+             </h2>
+    """, unsafe_allow_html=True)
     
     form_data = st.session_state.booking_form_data
     
@@ -22,7 +28,14 @@ def render_step_authorization(booking_service, client_service):
     """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("#### Выберите действие:")
+    
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+                  margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 Выберите действие:
+             </h2>
+    """, unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["🔐 Войти", "📝 Регистрация", "💳 Оплатить позже"])
     

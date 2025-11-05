@@ -8,7 +8,13 @@ from ..utils.scroll_helpers import render_step_anchor, render_field_anchor, rend
 def render_step_datetime(booking_service):
     """Шаг 1: Выбор даты и времени с якорями"""
     render_step_anchor("step1-form")
-    st.markdown("### 📅 Шаг 1: Выберите дату и время")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+                  margin-bottom: 1.4rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 📅 Шаг 1: Выберите дату и время
+             </h2>
+    """, unsafe_allow_html=True)
     st.caption("Всё время — по Москве (MSK)")
     
     # Выбор даты
@@ -33,7 +39,13 @@ def render_step_datetime(booking_service):
         return
     
     render_field_anchor("time-slots")
-    st.markdown("#### 🕐 Доступные временные слоты")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+                  margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 🕐 Доступные временные слоты
+             </h2>
+    """, unsafe_allow_html=True)
     st.info(f"💡 Доступно {len(available_slots)} слотов на {selected_date.strftime('%d.%m.%Y')}")
     
     # Отображение слотов в сетке

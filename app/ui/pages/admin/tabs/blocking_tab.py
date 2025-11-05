@@ -9,7 +9,7 @@ def render_blocking_tab():
     """Вкладка блокировок"""
     
     st.markdown("""
-    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
+    <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
          margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
          border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
         🚫 Управление блокировками

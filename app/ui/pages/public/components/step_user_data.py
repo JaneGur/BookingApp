@@ -6,7 +6,13 @@ from ..utils.scroll_helpers import render_step_anchor, render_field_anchor, rend
 def render_step_user_data():
     """Шаг 2: Заполнение данных с якорями для каждого поля"""
     render_step_anchor("step2-form")
-    st.markdown("### 👤 Шаг 2: Ваши данные")
+    st.markdown("""
+             <h2 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+                  margin-bottom: 1.4rem; padding-bottom: 0.75rem; 
+                  border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+                 📅 👤 Шаг 2: Ваши данные
+             </h2>
+    """, unsafe_allow_html=True)
     
     form_data = st.session_state.booking_form_data
     

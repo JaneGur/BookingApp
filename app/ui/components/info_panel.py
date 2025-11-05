@@ -141,7 +141,14 @@ def render_info_panel():
 
     # Основная информация
     st.markdown('<div class="info-section">', unsafe_allow_html=True)
-    st.markdown('<h4>ℹ️ Информация о консультациях</h4>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+        ℹ️ Информация о консультациях
+    </h3>
+    """, unsafe_allow_html=True)
     
     # Рабочее время
     work_hours = settings.info_work_hours.replace('\n', ' ')
@@ -197,7 +204,14 @@ def render_info_panel():
     
     # Контакты
     st.markdown('<div class="info-section">', unsafe_allow_html=True)
-    st.markdown('<h4>📞 Контакты</h4>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
+         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
+         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
+         📞 Контакты
+    </h3>
+    """, unsafe_allow_html=True)
     
     contacts = settings.info_contacts
     contact_lines = [line.strip() for line in contacts.split('\n') if line.strip()]
