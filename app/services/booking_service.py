@@ -8,125 +8,150 @@ from config.constants import BOOKING_RULES
 from utils.validators import normalize_phone, hash_password
 from utils.datetime_helpers import now_msk, combine_msk
 
+# ВЫНЕСЛИ КЭШИРОВАННЫЕ ФУНКЦИИ ВНЕ КЛАССА
+@st.cache_data(ttl=60, show_spinner=False)
+def get_available_slots_cached(date: str) -> List[str]:
+    """КЭШИРОВАННАЯ версия получения доступных слотов (TTL 60 сек)"""
+    try:
+        from services.settings_service import SettingsService
+        settings_service = SettingsService()
+        settings = settings_service.get_settings()
+        
+        if not settings:
+            return []
+            
+        work_start = datetime.strptime(settings.work_start, '%H:%M').time()
+        work_end = datetime.strptime(settings.work_end, '%H:%M').time()
+        session_duration = settings.session_duration
+        
+        supabase = db_manager.get_client()
+        if not supabase:
+            return []
+        
+        # Проверка блокировки дня
+        blocked_response = supabase.table('blocked_slots')\
+            .select('id')\
+            .eq('block_date', date)\
+            .is_('block_time', None)\
+            .execute()
+        
+        if blocked_response.data:
+            return []
+        
+        # Занятые слоты
+        booked_response = supabase.table('bookings')\
+            .select('booking_time')\
+            .eq('booking_date', date)\
+            .neq('status', 'cancelled')\
+            .execute()
+        
+        booked_slots = [item['booking_time'] for item in booked_response.data] if booked_response.data else []
+        
+        # Заблокированные слоты
+        blocked_slots_response = supabase.table('blocked_slots')\
+            .select('block_time')\
+            .eq('block_date', date)\
+            .not_.is_('block_time', None)\
+            .execute()
+        
+        blocked_slots = [item['block_time'] for item in blocked_slots_response.data] if blocked_slots_response.data else []
+        
+        # Генерация слотов
+        slots = []
+        try:
+            base_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except Exception:
+            base_date = now_msk().date()
+        current_time = datetime.combine(base_date, work_start)
+        end_time = datetime.combine(base_date, work_end)
+        last_start_time = end_time - timedelta(minutes=session_duration)
+        
+        while current_time <= last_start_time:
+            time_slot = current_time.strftime('%H:%M')
+            
+            if (time_slot not in booked_slots and 
+                time_slot not in blocked_slots):
+                # Упрощённая проверка доступности времени
+                booking_datetime = combine_msk(date, time_slot)
+                time_diff = (booking_datetime - now_msk()).total_seconds()
+                min_advance = BOOKING_RULES["MIN_ADVANCE_HOURS"] * 3600
+                
+                if time_diff >= min_advance:
+                    slots.append(time_slot)
+            
+            current_time += timedelta(minutes=session_duration)
+        
+        return slots
+    except Exception as e:
+        print(f"❌ Ошибка получения доступных слотов: {e}")
+        return []
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_upcoming_client_booking_cached(phone: str) -> Optional[Dict[str, Any]]:
+    """КЭШИРОВАННАЯ версия получения ближайшей записи (TTL 30 сек)"""
+    try:
+        supabase = db_manager.get_client()
+        if not supabase:
+            return None
+        
+        phone_hash = hash_password(normalize_phone(phone))
+        response = supabase.table('bookings')\
+            .select('*')\
+            .eq('phone_hash', phone_hash)\
+            .eq('status', 'confirmed')\
+            .gte('booking_date', now_msk().date().isoformat())\
+            .order('booking_date')\
+            .order('booking_time')\
+            .limit(1)\
+            .execute()
+        
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"❌ Ошибка получения ближайшей записи: {e}")
+        return None
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_latest_pending_booking_cached(phone: str) -> Optional[Dict[str, Any]]:
+    """КЭШИРОВАННАЯ версия получения неоплаченного заказа (TTL 30 сек)"""
+    try:
+        supabase = db_manager.get_client()
+        if not supabase:
+            return None
+        
+        phone_hash = hash_password(normalize_phone(phone))
+        response = supabase.table('bookings')\
+            .select('*')\
+            .eq('phone_hash', phone_hash)\
+            .eq('status', 'pending_payment')\
+            .gte('booking_date', now_msk().date().isoformat())\
+            .order('booking_date', desc=True)\
+            .order('booking_time', desc=True)\
+            .limit(1)\
+            .execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"❌ Ошибка получения заказа в ожидании оплаты: {e}")
+        return None
+
+
 class BookingService:
     
     def __init__(self):
         self.sb_read = db_manager.get_client()
         self.sb_write = db_manager.get_service_client() or self.sb_read
     
-    # ========== КЭШИРОВАННЫЕ МЕТОДЫ ==========
+    # ИСПОЛЬЗУЕМ КЭШИРОВАННЫЕ ФУНКЦИИ
+    def get_available_slots(self, date: str) -> List[str]:
+        """Получение доступных слотов через кэш"""
+        return get_available_slots_cached(date)
     
-    @st.cache_data(ttl=60, show_spinner=False)
-    def get_available_slots(_self, date: str) -> List[str]:
-        """КЭШИРОВАННАЯ версия получения доступных слотов (TTL 60 сек)"""
-        try:
-            from services.settings_service import SettingsService
-            settings_service = SettingsService()
-            settings = settings_service.get_settings()
-            
-            if not settings:
-                return []
-                
-            work_start = datetime.strptime(settings.work_start, '%H:%M').time()
-            work_end = datetime.strptime(settings.work_end, '%H:%M').time()
-            session_duration = settings.session_duration
-            
-            # Проверка блокировки дня
-            blocked_response = _self.sb_read.table('blocked_slots')\
-                .select('id')\
-                .eq('block_date', date)\
-                .is_('block_time', None)\
-                .execute()
-            
-            if blocked_response.data:
-                return []
-            
-            # Занятые слоты
-            booked_response = _self.sb_read.table('bookings')\
-                .select('booking_time')\
-                .eq('booking_date', date)\
-                .neq('status', 'cancelled')\
-                .execute()
-            
-            booked_slots = [item['booking_time'] for item in booked_response.data] if booked_response.data else []
-            
-            # Заблокированные слоты
-            blocked_slots_response = _self.sb_read.table('blocked_slots')\
-                .select('block_time')\
-                .eq('block_date', date)\
-                .not_.is_('block_time', None)\
-                .execute()
-            
-            blocked_slots = [item['block_time'] for item in blocked_slots_response.data] if blocked_slots_response.data else []
-            
-            # Генерация слотов
-            slots = []
-            try:
-                base_date = datetime.strptime(date, "%Y-%m-%d").date()
-            except Exception:
-                base_date = now_msk().date()
-            current_time = datetime.combine(base_date, work_start)
-            end_time = datetime.combine(base_date, work_end)
-            last_start_time = end_time - timedelta(minutes=session_duration)
-            
-            while current_time <= last_start_time:
-                time_slot = current_time.strftime('%H:%M')
-                
-                if (time_slot not in booked_slots and 
-                    time_slot not in blocked_slots):
-                    # Упрощённая проверка доступности времени
-                    booking_datetime = combine_msk(date, time_slot)
-                    time_diff = (booking_datetime - now_msk()).total_seconds()
-                    min_advance = BOOKING_RULES["MIN_ADVANCE_HOURS"] * 3600
-                    
-                    if time_diff >= min_advance:
-                        slots.append(time_slot)
-                
-                current_time += timedelta(minutes=session_duration)
-            
-            return slots
-        except Exception as e:
-            print(f"❌ Ошибка получения доступных слотов: {e}")
-            return []
+    def get_upcoming_client_booking(self, phone: str) -> Optional[Dict[str, Any]]:
+        """Получение ближайшей записи через кэш"""
+        return get_upcoming_client_booking_cached(phone)
     
-    @st.cache_data(ttl=30, show_spinner=False)
-    def get_upcoming_client_booking(_self, phone: str) -> Optional[Dict[str, Any]]:
-        """КЭШИРОВАННАЯ версия получения ближайшей записи (TTL 30 сек)"""
-        try:
-            phone_hash = hash_password(normalize_phone(phone))
-            response = _self.sb_read.table('bookings')\
-                .select('*')\
-                .eq('phone_hash', phone_hash)\
-                .eq('status', 'confirmed')\
-                .gte('booking_date', now_msk().date().isoformat())\
-                .order('booking_date')\
-                .order('booking_time')\
-                .limit(1)\
-                .execute()
-            
-            return response.data[0] if response.data else None
-        except Exception as e:
-            print(f"❌ Ошибка получения ближайшей записи: {e}")
-            return None
-    
-    @st.cache_data(ttl=30, show_spinner=False)
-    def get_latest_pending_booking_for_client(_self, phone: str) -> Optional[Dict[str, Any]]:
-        """КЭШИРОВАННАЯ версия получения неоплаченного заказа (TTL 30 сек)"""
-        try:
-            phone_hash = hash_password(normalize_phone(phone))
-            response = _self.sb_read.table('bookings')\
-                .select('*')\
-                .eq('phone_hash', phone_hash)\
-                .eq('status', 'pending_payment')\
-                .gte('booking_date', now_msk().date().isoformat())\
-                .order('booking_date', desc=True)\
-                .order('booking_time', desc=True)\
-                .limit(1)\
-                .execute()
-            return response.data[0] if response.data else None
-        except Exception as e:
-            print(f"❌ Ошибка получения заказа в ожидании оплаты: {e}")
-            return None
+    def get_latest_pending_booking_for_client(self, phone: str) -> Optional[Dict[str, Any]]:
+        """Получение неоплаченного заказа через кэш"""
+        return get_latest_pending_booking_cached(phone)
     
     # ========== МЕТОДЫ БЕЗ ИЗМЕНЕНИЙ (но с инвалидацией кэша) ==========
     
