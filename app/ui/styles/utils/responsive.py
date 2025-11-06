@@ -1,30 +1,52 @@
 def get_responsive_styles():
     return """
     @media (max-width: 768px) {
-        /* КРИТИЧНО: Убираем лишние wrapper-контейнеры */
+        /* КРИТИЧНО: Убираем ВСЕ лишние wrapper-контейнеры */
         .main .block-container {
-            padding: 1rem 0.5rem !important;
+            padding: 0.5rem !important;
             max-width: 100% !important;
         }
         
-        /* Убираем огромные вертикальные отступы у вложенных div */
-        [data-testid="stVerticalBlock"] > div:not([class]) {
+        /* АГРЕССИВНО убираем padding/margin у ВСЕХ безымянных div */
+        .main div:not([class]):not([data-testid]) {
             padding: 0 !important;
             margin: 0 !important;
         }
         
+        /* Убираем отступы у вертикальных блоков */
+        [data-testid="stVerticalBlock"],
+        [data-testid="stVerticalBlock"] > div,
+        [data-testid="stVerticalBlock"] > div > div,
+        [data-testid="stVerticalBlock"] > div > div > div {
+            padding: 0 !important;
+            margin: 0 !important;
+            gap: 0.5rem !important;
+        }
+        
+        /* Убираем отступы у горизонтальных блоков */
+        [data-testid="stHorizontalBlock"],
+        [data-testid="stHorizontalBlock"] > div,
+        [data-testid="stHorizontalBlock"] > div > div,
+        [data-testid="stHorizontalBlock"] > div > div > div {
+            padding: 0 !important;
+            margin: 0 !important;
+            gap: 0.5rem !important;
+        }
+        
         /* Компактные колонки */
-        [data-testid="column"] {
+        [data-testid="column"],
+        [data-testid="column"] > div,
+        [data-testid="column"] > div > div {
             width: 100% !important;
             flex: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
+            min-width: 100% !important;
         }
         
-        /* Убираем padding у wrapper div */
-        [data-testid="stVerticalBlock"] > div > div:not([class*="st-"]) {
-            padding: 0 !important;
-            margin: 0 !important;
+        /* Убираем лишние gap между элементами */
+        [data-testid="stVerticalBlock"] {
+            gap: 0.5rem !important;
         }
         
         /* Компактные формы */
@@ -194,9 +216,23 @@ def get_responsive_styles():
             padding: 0.5rem !important;
         }
         
-        /* Убираем лишние gap между элементами */
-        [data-testid="stVerticalBlock"] {
-            gap: 0.5rem !important;
+        /* ДОПОЛНИТЕЛЬНО: Убираем отступы у специфичных контейнеров Streamlit */
+        div[style*="padding"],
+        div[style*="margin"] {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Форсируем компактный режим для всех внутренних элементов */
+        .main * {
+            box-sizing: border-box !important;
+        }
+        
+        /* Убираем любые минимальные ширины */
+        [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"],
+        [data-testid="column"] {
+            min-width: unset !important;
         }
     }
     """

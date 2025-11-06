@@ -1,15 +1,12 @@
 """
-Файл 1: app/ui/pages/admin/client_profile.py
-Полноценная страница профиля клиента с историей и редактированием
-
-Файл 2: app/ui/pages/admin/tabs/clients_tab.py (ОБНОВЛЕННАЯ ВЕРСИЯ)
-Компактный список клиентов с переходом на профиль
+Файл: app/ui/pages/admin/tabs/clients_tab_compact.py
+ОПТИМИЗИРОВАННАЯ версия - fragment для быстрых обновлений
 """
-
-# ============== ФАЙЛ 2: ОБНОВЛЕННАЯ ВКЛАДКА КЛИЕНТОВ ==============
+import streamlit as st
+import time
 
 def render_clients_tab_compact(client_service, booking_service):
-    """КОМПАКТНАЯ вкладка управления клиентами - список без развернутой истории"""
+    """ОПТИМИЗИРОВАННАЯ вкладка с fragment"""
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
          margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
@@ -18,34 +15,100 @@ def render_clients_tab_compact(client_service, booking_service):
     </h3>
     """, unsafe_allow_html=True)
     
-    # Верхняя панель
-    render_top_actions_compact()
+    # Верхняя панель БЕЗ лишних кнопок
+    render_top_actions_optimized()
     
     # Форма новой записи (если активирована)
     if st.session_state.get('show_new_booking_form'):
-        from .clients_tab import render_new_booking_form
-        render_new_booking_form(client_service, booking_service)
+        render_new_booking_form_optimized(client_service, booking_service)
         st.markdown("---")
     
+    # Fragment для списка клиентов
+    render_clients_list_fragment(client_service)
+
+
+def render_top_actions_optimized():
+    """Верхняя панель БЕЗ кнопки обновления"""
+    col1, col2, col3 = st.columns([3, 1, 1])
+    
+    with col1:
+        st.markdown("#### 📋 Быстрые действия")
+    
+    with col2:
+        stats_label = "📊 Скрыть статистику" if st.session_state.get('show_stats') else "📊 Показать статистику"
+        if st.button(stats_label, use_container_width=True, key="toggle_stats"):
+            st.session_state.show_stats = not st.session_state.get('show_stats', False)
+            # Без st.rerun() - fragment обновится сам
+    
+    with col3:
+        if st.button("➕ Создать заказ", use_container_width=True, type="primary", key="new_booking_btn"):
+            st.session_state.show_new_booking_form = not st.session_state.get('show_new_booking_form', False)
+            # Без st.rerun()
+
+
+@st.fragment
+def render_clients_list_fragment(client_service):
+    """Fragment для списка клиентов - изолированные обновления"""
+    
     # Поиск и фильтры
-    search_query, show_only_active = render_search_and_filters()
+    st.markdown("---")
+    st.markdown("#### 🔍 Поиск клиентов")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        search_query = st.text_input(
+            "Поиск по имени или телефону", 
+            placeholder="Введите имя или номер телефона...", 
+            key="admin_client_search",
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        show_only_active = st.checkbox(
+            "Только активные", 
+            value=False, 
+            key="admin_active_filter",
+            help="Клиенты с предстоящими записями"
+        )
     
     # Загрузка данных
     clients_df = client_service.get_all_clients()
     
     if clients_df.empty:
-        render_empty_state()
+        st.info("📭 В базе пока нет клиентов")
         return
     
     # Применение фильтров
-    clients_df = apply_filters(clients_df, search_query, show_only_active)
+    if search_query:
+        mask = (
+            clients_df['client_name'].str.contains(search_query, case=False, na=False) | 
+            clients_df['client_phone'].str.contains(search_query, case=False, na=False)
+        )
+        clients_df = clients_df[mask]
     
-    # Статистика
+    if show_only_active:
+        clients_df = clients_df[clients_df['upcoming_bookings'] > 0]
+    
+    # Статистика (если включена)
     if st.session_state.get('show_stats'):
-        render_summary_statistics(clients_df)
         st.markdown("---")
+        st.markdown("#### 📊 Статистика")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1: st.metric("👥 Всего клиентов", len(clients_df))
+        with col2: 
+            active = len(clients_df[clients_df['upcoming_bookings'] > 0])
+            st.metric("✅ Активных", active)
+        with col3:
+            avg = clients_df['total_bookings'].mean() if len(clients_df) > 0 else 0
+            st.metric("📊 Среднее записей", f"{avg:.1f}")
+        with col4:
+            total = clients_df['total_bookings'].sum()
+            st.metric("📅 Всего записей", int(total))
     
-    # КОМПАКТНЫЙ список клиентов
+    # КОМПАКТНЫЙ список
+    st.markdown("---")
     st.markdown(f"#### 👥 Список клиентов ({len(clients_df)})")
     
     if clients_df.empty:
@@ -56,34 +119,12 @@ def render_clients_tab_compact(client_service, booking_service):
     clients_df = clients_df.sort_values(['upcoming_bookings', 'client_name'], ascending=[False, True])
     
     for idx, client in clients_df.iterrows():
-        render_client_card_super_compact(client)
+        render_client_card_optimized(client)
 
 
-def render_top_actions_compact():
-    """Верхняя панель с действиями"""
-    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-    
-    with col1:
-        st.markdown("#### 📋 Быстрые действия")
-    
-    with col2:
-        if st.button("🔄 Обновить", use_container_width=True, key="refresh_clients"):
-            st.rerun()
-    
-    with col3:
-        stats_label = "📊 Скрыть статистику" if st.session_state.get('show_stats') else "📊 Показать статистику"
-        if st.button(stats_label, use_container_width=True, key="toggle_stats"):
-            st.session_state.show_stats = not st.session_state.get('show_stats', False)
-            st.rerun()
-    
-    with col4:
-        if st.button("➕ Создать заказ", use_container_width=True, type="primary", key="new_booking_btn"):
-            st.session_state.show_new_booking_form = not st.session_state.get('show_new_booking_form', False)
-            st.rerun()
-
-
-def render_client_card_super_compact(client):
-    """СУПЕР-КОМПАКТНАЯ карточка клиента - только основная информация + кнопка профиля"""
+@st.fragment
+def render_client_card_optimized(client):
+    """ОПТИМИЗИРОВАННАЯ карточка клиента - БЕЗ лишних rerun"""
     
     is_active = client['upcoming_bookings'] > 0
     status_badge = "🟢 Активен" if is_active else "⚪️ Неактивен"
@@ -111,29 +152,27 @@ def render_client_card_super_compact(client):
             """, unsafe_allow_html=True)
         
         with col_metrics:
-            # Компактные метрики в 2x2
             met_col1, met_col2 = st.columns(2)
             with met_col1:
-                st.metric("📅 Всего", client['total_bookings'], label_visibility="visible", help="Всего записей")
+                st.metric("📅 Всего", client['total_bookings'], label_visibility="visible")
                 st.metric("✅ Завершено", client['completed_bookings'], label_visibility="visible")
             with met_col2:
                 st.metric("⏰ Предстоящих", client['upcoming_bookings'], label_visibility="visible")
                 st.metric("❌ Отменено", client['cancelled_bookings'], label_visibility="visible")
         
         with col_actions:
-            # Кнопка открытия профиля
+            # Кнопка профиля БЕЗ spinner
             if st.button("👁️ Профиль", key=f"profile_{client['phone_hash']}", 
-                        use_container_width=True, type="primary",
-                        help="Открыть полный профиль клиента"):
+                        use_container_width=True, type="primary"):
                 st.session_state.admin_page = "client_profile"
                 st.session_state.selected_client = client['phone_hash']
                 st.session_state.selected_client_name = client['client_name']
                 st.rerun()
             
-            # Быстрое удаление (с подтверждением)
+            # Быстрое удаление
             delete_key = f"delete_confirm_{client['phone_hash']}"
             if st.session_state.get(delete_key):
-                if st.button("✅ Да, удалить", key=f"confirm_{client['phone_hash']}", 
+                if st.button("✅ Да", key=f"confirm_{client['phone_hash']}", 
                            use_container_width=True, type="secondary"):
                     from services.client_service import ClientService
                     cs = ClientService()
@@ -141,21 +180,94 @@ def render_client_card_super_compact(client):
                     if ok:
                         st.success(msg)
                         st.session_state[delete_key] = False
-                        time.sleep(0.5)
-                        st.rerun()
+                        # Fragment обновится автоматически
                     else:
                         st.error(msg)
                 
-                if st.button("❌ Отмена", key=f"cancel_{client['phone_hash']}", use_container_width=True):
+                if st.button("❌ Нет", key=f"cancel_{client['phone_hash']}", use_container_width=True):
                     st.session_state[delete_key] = False
-                    st.rerun()
             else:
                 if st.button("🗑️", key=f"delete_{client['phone_hash']}", 
-                           use_container_width=True, help="Удалить клиента"):
+                           use_container_width=True):
                     st.session_state[delete_key] = True
-                    st.rerun()
         
         st.markdown("---")
+
+
+@st.fragment
+def render_new_booking_form_optimized(client_service, booking_service):
+    """Оптимизированная форма создания заказа"""
+    from datetime import datetime, timedelta
+    from utils.datetime_helpers import now_msk
+    from utils.product_cache import get_product_map
+    
+    st.markdown("---")
+    st.markdown("### ➕ Создание нового заказа")
+    
+    with st.form("new_booking_admin_form"):
+        st.markdown("**👤 Клиент**")
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            new_client_name = st.text_input("Имя *", placeholder="Иван Иванов", key="admin_new_client_name")
+            new_client_email = st.text_input("Email", placeholder="example@mail.com", key="admin_new_client_email")
+        
+        with col_b:
+            new_client_phone = st.text_input("Телефон *", placeholder="+7 (999) 123-45-67", key="admin_new_client_phone")
+            new_client_telegram = st.text_input("Telegram", placeholder="@username", key="admin_new_client_telegram")
+        
+        st.markdown("---")
+        st.markdown("**📅 Детали записи**")
+        
+        col_c, col_d = st.columns(2)
+        
+        with col_c:
+            booking_date = st.date_input("Дата *", min_value=now_msk().date(), 
+                                       max_value=now_msk().date() + timedelta(days=30), key="admin_booking_date")
+        
+        with col_d:
+            booking_time = st.time_input("Время *", value=datetime.strptime("09:00", "%H:%M").time(), key="admin_booking_time")
+        
+        booking_notes = st.text_area("Комментарий", height=80, key="admin_booking_notes")
+        
+        st.markdown("---")
+        
+        col_submit, col_cancel = st.columns([1, 1])
+        
+        with col_submit:
+            submit_booking = st.form_submit_button("✅ Создать заказ", use_container_width=True, type="primary")
+        
+        with col_cancel:
+            cancel_booking = st.form_submit_button("❌ Отмена", use_container_width=True)
+        
+        if cancel_booking:
+            st.session_state.show_new_booking_form = False
+            st.rerun()
+        
+        if submit_booking:
+            if not new_client_name or not new_client_phone:
+                st.error("❌ Заполните имя и телефон клиента")
+            else:
+                booking_data = {
+                    'client_name': new_client_name,
+                    'client_phone': new_client_phone,
+                    'client_email': new_client_email,
+                    'client_telegram': new_client_telegram,
+                    'booking_date': str(booking_date),
+                    'booking_time': booking_time.strftime("%H:%M"),
+                    'notes': booking_notes,
+                    'status': 'pending_payment'
+                }
+                
+                success, message = booking_service.create_booking(booking_data)
+                
+                if success:
+                    st.success("✅ Заказ создан и ожидает оплаты")
+                    st.session_state.show_new_booking_form = False
+                    st.rerun()
+                    # Fragment обновится автоматически
+                else:
+                    st.error(message)
 
 
 # ============== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (из старого кода) ==============
