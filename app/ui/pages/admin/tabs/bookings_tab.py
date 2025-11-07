@@ -299,14 +299,31 @@ def render_booking_card_fast(booking: dict, booking_service, prod_map: dict):
         col_info, col_actions = st.columns([4, 1])
         
         with col_info:
+            # КЛИКАБЕЛЬНАЯ плашка - переход в профиль клиента
+            from utils.validators import hash_password, normalize_phone
+            phone_hash = hash_password(normalize_phone(booking.get('client_phone', '')))
+            
             st.markdown(f"""
             <div style="background: {status_info['bg_color']}; padding: 1rem; border-radius: 12px; 
-                 border-left: 4px solid {status_info['color']}; margin-bottom: 0.5rem;">
+                 border-left: 4px solid {status_info['color']}; margin-bottom: 0.5rem; cursor: pointer;"
+                 onclick="alert('Click handler would be implemented with Streamlit button')">
                 <p style="font-size: 1.1rem; font-weight: 600; margin: 0;">
                     {status_info['emoji']} {booking.get('booking_time', '')} — {booking.get('client_name', '')}
                 </p>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Невидимая кнопка для обработки клика
+            if st.button(
+                f"Перейти в профиль {booking.get('client_name', '')}",
+                key=f"goto_profile_{booking['id']}",
+                use_container_width=True,
+                help="Нажмите, чтобы открыть профиль клиента и редактировать заказ"
+            ):
+                st.session_state.admin_page = "client_profile"
+                st.session_state.selected_client = phone_hash
+                st.session_state.selected_client_name = booking.get('client_name', '')
+                st.rerun()
             
             col_i1, col_i2 = st.columns([2, 1])
             
@@ -383,3 +400,126 @@ def render_booking_card_fast(booking: dict, booking_service, prod_map: dict):
                         st.rerun()
                     else:
                         st.error("❌ Ошибка удаления")
+
+# @st.fragment
+# def render_booking_card_fast(booking: dict, booking_service, prod_map: dict):
+#     """Карточка записи с кликабельной плашкой для перехода в профиль"""
+    
+#     status_info = STATUS_DISPLAY.get(booking.get('status', 'confirmed'), STATUS_DISPLAY['confirmed'])
+#     is_pending = (booking.get('status') == 'pending_payment')
+#     is_active = (booking.get('status') in ['confirmed', 'pending_payment'])
+    
+#     with st.container():
+#         col_info, col_actions = st.columns([4, 1])
+        
+#         with col_info:
+#             # КЛИКАБЕЛЬНАЯ плашка - переход в профиль клиента
+#             from utils.validators import hash_password, normalize_phone
+#             phone_hash = hash_password(normalize_phone(booking.get('client_phone', '')))
+            
+#             if st.button(
+#                 f"{status_info['emoji']} {booking.get('booking_time', '')} — {booking.get('client_name', '')}",
+#                 key=f"goto_profile_{booking['id']}",
+#                 use_container_width=True,
+#                 help="Нажмите, чтобы открыть профиль клиента и редактировать заказ"
+#             ):
+#                 st.session_state.admin_page = "client_profile"
+#                 st.session_state.selected_client = phone_hash
+#                 st.session_state.selected_client_name = booking.get('client_name', '')
+#                 st.rerun()
+# @st.fragment
+# def render_booking_card_fast(booking: dict, booking_service, prod_map: dict):
+#     """Карточка записи"""
+    
+#     status_info = STATUS_DISPLAY.get(booking.get('status', 'confirmed'), STATUS_DISPLAY['confirmed'])
+#     is_pending = (booking.get('status') == 'pending_payment')
+#     is_active = (booking.get('status') in ['confirmed', 'pending_payment'])
+    
+#     with st.container():
+#         col_info, col_actions = st.columns([4, 1])
+        
+#         with col_info:
+#             st.markdown(f"""
+#             <div style="background: {status_info['bg_color']}; padding: 1rem; border-radius: 12px; 
+#                  border-left: 4px solid {status_info['color']}; margin-bottom: 0.5rem;">
+#                 <p style="font-size: 1.1rem; font-weight: 600; margin: 0;">
+#                     {status_info['emoji']} {booking.get('booking_time', '')} — {booking.get('client_name', '')}
+#                 </p>
+#             </div>
+#             """, unsafe_allow_html=True)
+            
+#             col_i1, col_i2 = st.columns([2, 1])
+            
+#             with col_i1:
+#                 st.text(f"📱 {booking.get('client_phone', '')}")
+#                 if booking.get('notes'):
+#                     st.text(f"💭 {booking.get('notes')}")
+            
+#             with col_i2:
+#                 pid = booking.get('product_id')
+#                 amount = booking.get('amount')
+                
+#                 if pid is not None and pid in prod_map:
+#                     pname = prod_map[pid].get('name') or f"ID {pid}"
+#                     st.text(f"🧾 {pname}")
+#                     if amount is not None:
+#                         st.text(f"💰 {amount} ₽")
+#                 elif is_pending:
+#                     st.caption("💳 Продукт не выбран")
+        
+#         with col_actions:
+#             booking_id = booking['id']
+            
+#             if is_pending:
+#                 if st.button("💳", key=f"pay_{booking_id}", 
+#                            help="Отметить как оплачено", 
+#                            use_container_width=True, type="primary"):
+#                     ok, msg = booking_service.mark_booking_paid(booking_id)
+#                     if ok:
+#                         st.success(msg)
+#                         st.rerun()
+#                     else:
+#                         st.error(msg)
+            
+#             if is_active:
+#                 if st.button("❌", key=f"cancel_{booking_id}", 
+#                            help="Отменить запись", 
+#                            use_container_width=True):
+#                     ok, msg = booking_service.update_booking_status(booking_id, 'cancelled')
+#                     if ok:
+#                         st.success("✅ Отменено")
+#                         st.rerun()
+#                     else:
+#                         st.error(msg)
+            
+#             with st.popover("⚙️", use_container_width=True):
+#                 st.markdown("##### Дополнительно")
+                
+#                 new_status = st.selectbox(
+#                     "Статус",
+#                     options=['pending_payment', 'confirmed', 'completed', 'cancelled'],
+#                     format_func=lambda x: STATUS_DISPLAY[x]['text'],
+#                     index=['pending_payment', 'confirmed', 'completed', 'cancelled'].index(
+#                         booking.get('status', 'confirmed')
+#                     ),
+#                     key=f"status_{booking_id}"
+#                 )
+                
+#                 if st.button("💾 Изменить статус", key=f"upd_status_{booking_id}", 
+#                            use_container_width=True):
+#                     ok, msg = booking_service.update_booking_status(booking_id, new_status)
+#                     if ok:
+#                         st.success(msg)
+#                         st.rerun()
+#                     else:
+#                         st.error(msg)
+                
+#                 st.markdown("---")
+                
+#                 if st.button("🗑️ Удалить запись", key=f"del_{booking_id}", 
+#                            use_container_width=True, type="secondary"):
+#                     if booking_service.delete_booking(booking_id):
+#                         st.success("✅ Удалено")
+#                         st.rerun()
+#                     else:
+#                         st.error("❌ Ошибка удаления")
