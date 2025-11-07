@@ -98,7 +98,8 @@ def render_step_confirmation(booking_service):
                     'booking_time': form_data.get('time'),
                     'notes': form_data.get('notes', ''),
                     'telegram_chat_id': form_data.get('chat_id', ''),
-                    'status': 'pending_payment'
+                    'status': 'pending_payment',
+                    'is_admin': False
                 }
                 
                 success, message = booking_service.create_booking(booking_data)

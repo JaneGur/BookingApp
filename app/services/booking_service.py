@@ -133,6 +133,39 @@ def get_latest_pending_booking_cached(phone: str) -> Optional[Dict[str, Any]]:
         print(f"❌ Ошибка получения заказа в ожидании оплаты: {e}")
         return None
 
+def validate_booking_time(date_str: str, time_str: str, is_admin: bool = False) -> Tuple[bool, str]:
+    """
+    Проверка доступности времени для записи
+    
+    Args:
+        date_str: Дата в формате YYYY-MM-DD
+        time_str: Время в формате HH:MM
+        is_admin: Флаг создания админом (true) или клиентом (false)
+    
+    Returns:
+        Tuple[bool, str]: (успех, сообщение)
+    """
+    try:
+        booking_datetime = combine_msk(date_str, time_str)
+        now = now_msk()
+        time_diff = (booking_datetime - now).total_seconds()
+        
+        # Проверка: время не в прошлом
+        if time_diff < 0:
+            return False, "❌ Это время уже прошло"
+        
+        # Для клиентов: минимум за 1 час
+        if not is_admin:
+            min_advance = BOOKING_RULES["MIN_ADVANCE_HOURS"] * 3600
+            if time_diff < min_advance:
+                return False, f"❌ Запись возможна не менее чем за {BOOKING_RULES['MIN_ADVANCE_HOURS']} час до начала"
+        
+        # Для админа: можно создавать если время ещё не прошло (уже проверено выше)
+        return True, "✅ Время доступно"
+        
+    except ValueError:
+        return False, "❌ Неверный формат времени"
+
 
 class BookingService:
     
@@ -156,8 +189,19 @@ class BookingService:
     # ========== МЕТОДЫ БЕЗ ИЗМЕНЕНИЙ (но с инвалидацией кэша) ==========
     
     def create_booking(self, booking_data: Dict[str, Any]) -> Tuple[bool, str]:
-        """Создание записи с инвалидацией кэша"""
+        """Создание записи с валидацией времени"""
         try:
+            # ДОБАВЛЯЕМ ВАЛИДАЦИЮ ВРЕМЕНИ
+            is_admin = booking_data.get('is_admin', False)
+            time_valid, time_msg = validate_booking_time(
+                booking_data['booking_date'],
+                booking_data['booking_time'],
+                is_admin=is_admin
+            )
+            
+            if not time_valid:
+                return False, time_msg
+            
             phone_hash = hash_password(normalize_phone(booking_data['client_phone']))
             
             response = self.sb_write.table('bookings').insert({
@@ -174,7 +218,6 @@ class BookingService:
             }).execute()
             
             if response.data:
-                # Инвалидация кэша
                 st.cache_data.clear()
                 return True, "✅ Запись успешно создана"
             return False, "❌ Ошибка при создании записи"

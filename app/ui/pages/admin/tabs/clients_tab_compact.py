@@ -256,7 +256,8 @@ def render_new_booking_form_optimized(client_service, booking_service):
                     'booking_date': str(booking_date),
                     'booking_time': booking_time.strftime("%H:%M"),
                     'notes': booking_notes,
-                    'status': 'pending_payment'
+                    'status': 'pending_payment',
+                    'is_admin': True 
                 }
                 
                 success, message = booking_service.create_booking(booking_data)

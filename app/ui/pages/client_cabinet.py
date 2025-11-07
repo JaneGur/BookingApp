@@ -454,7 +454,8 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                             'booking_time': selected_time,
                             'notes': notes,
                             'telegram_chat_id': chat_id,
-                            'status': 'pending_payment'
+                            'status': 'pending_payment',
+                            'is_admin': False
                         }
                         
                         success, message = booking_service.create_booking(booking_data)
