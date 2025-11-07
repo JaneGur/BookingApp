@@ -42,12 +42,84 @@ def _get_fonts_and_base():
 
 def _get_main_styles():
     return """
+    /* Основной фон с многослойными эффектами */
     .main {
         padding: 0rem 1rem;
         background: 
-            radial-gradient(circle at 20% 20%, rgba(136, 200, 188, 0.08) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(168, 213, 186, 0.08) 0%, transparent 50%),
-            linear-gradient(135deg, #f8fbfa 0%, #f2f7f5 100%);
+            /* Тонкая сетка */
+            repeating-linear-gradient(
+                0deg,
+                rgba(136, 200, 188, 0.015) 0px,
+                transparent 1px,
+                transparent 40px,
+                rgba(136, 200, 188, 0.015) 41px
+            ),
+            repeating-linear-gradient(
+                90deg,
+                rgba(136, 200, 188, 0.015) 0px,
+                transparent 1px,
+                transparent 40px,
+                rgba(136, 200, 188, 0.015) 41px
+            ),
+            /* Органические пятна света */
+            radial-gradient(ellipse at 10% 15%, rgba(136, 200, 188, 0.06) 0%, transparent 40%),
+            radial-gradient(ellipse at 90% 85%, rgba(168, 213, 186, 0.05) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 50%, rgba(232, 245, 242, 0.3) 0%, transparent 60%),
+            /* Мягкий волновой градиент */
+            linear-gradient(
+                135deg,
+                #fafdfb 0%,
+                #f5faf8 25%,
+                #f8fbfa 50%,
+                #f2f7f5 75%,
+                #f0f6f4 100%
+            );
+        background-attachment: fixed;
+        position: relative;
+    }
+    
+    /* Декоративные элементы поверх фона */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        background: 
+            /* Тонкие волны */
+            radial-gradient(
+                ellipse 800px 400px at 20% 20%,
+                rgba(136, 200, 188, 0.03) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                ellipse 600px 300px at 80% 80%,
+                rgba(168, 213, 186, 0.025) 0%,
+                transparent 50%
+            );
+        opacity: 0.8;
+        z-index: 0;
+    }
+    
+    /* Все контент поверх фона */
+    .main > div {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Улучшенные карточки с мягкой тенью на новом фоне */
+    .booking-card, .action-card, .info-section {
+        background: rgba(255, 255, 255, 0.92) !important;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(136, 200, 188, 0.12);
+    }
+    
+    /* Header с полупрозрачностью */
+    [data-testid="stHeader"] {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
     }
     """
 
