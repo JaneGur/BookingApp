@@ -7,7 +7,7 @@ from .pages.public import get_public_page_styles
 from .utils.responsive import get_responsive_styles
 
 def load_custom_css():
-    """Элегантные премиум стили с улучшенной навигацией"""
+    """Элегантные премиум стили с улучшенной навигацией и фоном"""
     import streamlit as st
     
     css_components = [
@@ -189,22 +189,56 @@ def _get_status_styles():
 
 def _get_telegram_styles():
     return """
-    /* Telegram статусы */
+    /* Telegram статусы с улучшенным дизайном */
     .telegram-connected {
-        background: linear-gradient(135deg, rgba(227, 242, 253, 0.95) 0%, rgba(187, 222, 251, 0.95) 100%);
-        border-left: 3px solid #0088cc;
+        background: 
+            linear-gradient(135deg, rgba(227, 242, 253, 0.95) 0%, rgba(187, 222, 251, 0.95) 100%);
+        border-left: 4px solid #0088cc;
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 16px;
         margin: 1rem 0;
-        box-shadow: 0 2px 8px rgba(0, 136, 204, 0.12);
+        box-shadow: 
+            0 4px 12px rgba(0, 136, 204, 0.08),
+            0 2px 4px rgba(0, 136, 204, 0.06);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 136, 204, 0.1);
+        position: relative;
     }
     
     .telegram-disconnected {
-        background: linear-gradient(135deg, rgba(255, 243, 224, 0.95) 0%, rgba(255, 224, 178, 0.95) 100%);
-        border-left: 3px solid #ff9800;
+        background: 
+            linear-gradient(135deg, rgba(255, 243, 224, 0.95) 0%, rgba(255, 224, 178, 0.95) 100%);
+        border-left: 4px solid #ff9800;
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 16px;
         margin: 1rem 0;
-        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.12);
+        box-shadow: 
+            0 4px 12px rgba(255, 152, 0, 0.08),
+            0 2px 4px rgba(255, 152, 0, 0.06);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 152, 0, 0.1);
+        position: relative;
+    }
+    
+    /* Декоративные элементы для блоков */
+    .telegram-connected::before,
+    .telegram-disconnected::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 150px;
+        height: 150px;
+        opacity: 0.05;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    
+    .telegram-connected::before {
+        background: radial-gradient(circle, #0088cc 0%, transparent 70%);
+    }
+    
+    .telegram-disconnected::before {
+        background: radial-gradient(circle, #ff9800 0%, transparent 70%);
     }
     """

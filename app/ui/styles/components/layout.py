@@ -82,7 +82,7 @@ def get_layout_styles():
     hr::before {
         content: '';
         position: absolute;
-        top: -1px;
+        top: -3px;
         left: 50%;
         transform: translateX(-50%);
         width: 8px;
