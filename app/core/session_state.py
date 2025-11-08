@@ -30,6 +30,7 @@ class SessionState:
     show_client_login: bool = False
     show_client_registration: bool = False
     show_password_reset: bool = False
+    show_password_reset_public: bool = False  # НОВОЕ ПОЛЕ
     registration_phone: str = ''
     registration_name: str = ''
     

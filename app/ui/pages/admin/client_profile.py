@@ -265,7 +265,7 @@ def render_booking_edit_form_inline(booking, booking_service, booking_key, edit_
 
 
 def render_new_booking_tab(client_service, booking_service, client_data):
-    """Вкладка создания новой записи"""
+    """Вкладка создания новой записи с ОБЯЗАТЕЛЬНЫМ продуктом"""
     st.markdown("### ➕ Создать новую запись")
     
     # Используем функцию из bookings_tab с префиксом "profile"
@@ -287,7 +287,7 @@ def render_new_booking_tab(client_service, booking_service, client_data):
         booking_notes = st.text_area("Комментарий", height=80, placeholder="Причина обращения...", key="booking_notes_profile")
         
         st.markdown("---")
-        st.markdown("**💳 Продукт**")
+        st.markdown("**💳 Продукт *")  # ДОБАВЛЕНА ЗВЕЗДОЧКА
         
         prod_map = get_product_map()
         prod_items = sorted(
@@ -301,27 +301,32 @@ def render_new_booking_tab(client_service, booking_service, client_data):
         
         if prod_items:
             prod_labels = [f"{name} — {price} ₽" for _, name, price in prod_items]
-            prod_labels.insert(0, "Без продукта")
+            # УБРАЛИ "Без продукта"
             
             selected_idx = st.selectbox(
-                "Выберите продукт", 
+                "Выберите продукт *", 
                 options=list(range(len(prod_labels))), 
                 format_func=lambda i: prod_labels[i],
-                key="select_product_profile"
+                key="select_product_profile",
+                help="Выбор продукта обязателен"
             )
             
-            if selected_idx > 0:
-                selected_prod_idx = selected_idx - 1
-                selected_prod_id, _, selected_prod_price = prod_items[selected_prod_idx]
+            selected_prod_idx = selected_idx
+            selected_prod_id, _, selected_prod_price = prod_items[selected_prod_idx]
         else:
-            st.info("ℹ️ Продукты не настроены")
+            st.error("❌ Продукты не настроены. Создайте хотя бы один продукт")
         
         st.markdown("---")
         
         col_submit, col_cancel = st.columns([1, 1])
         
         with col_submit:
-            submit_booking = st.form_submit_button("✅ Создать заказ", use_container_width=True, type="primary")
+            submit_booking = st.form_submit_button(
+                "✅ Создать заказ", 
+                use_container_width=True, 
+                type="primary",
+                disabled=(not prod_items)
+            )
         
         with col_cancel:
             cancel_booking = st.form_submit_button("❌ Отмена", use_container_width=True)
@@ -330,22 +335,26 @@ def render_new_booking_tab(client_service, booking_service, client_data):
             pass
         
         if submit_booking:
-            booking_data = {
-                'client_name': client_data['client_name'],
-                'client_phone': client_data['client_phone'],
-                'client_email': client_data.get('client_email', ''),
-                'client_telegram': client_data.get('client_telegram', ''),
-                'booking_date': str(booking_date),
-                'booking_time': booking_time.strftime("%H:%M"),
-                'notes': booking_notes,
-                'status': 'pending_payment',
-                'is_admin': True
-            }
-            
-            success, message = booking_service.create_booking(booking_data)
-            
-            if success:
-                if selected_prod_id is not None:
+            if not prod_items:
+                st.error("❌ Создайте хотя бы один продукт")
+            elif selected_prod_id is None:
+                st.error("❌ Выбор продукта обязателен")
+            else:
+                booking_data = {
+                    'client_name': client_data['client_name'],
+                    'client_phone': client_data['client_phone'],
+                    'client_email': client_data.get('client_email', ''),
+                    'client_telegram': client_data.get('client_telegram', ''),
+                    'booking_date': str(booking_date),
+                    'booking_time': booking_time.strftime("%H:%M"),
+                    'notes': booking_notes,
+                    'status': 'pending_payment',
+                    'is_admin': True
+                }
+                
+                success, message = booking_service.create_booking(booking_data)
+                
+                if success:
                     try:
                         row = booking_service.get_booking_by_datetime(
                             client_data['client_phone'], 
@@ -358,13 +367,13 @@ def render_new_booking_tab(client_service, booking_service, client_data):
                                 selected_prod_id, 
                                 float(selected_prod_price or 0)
                             )
+                        st.success("✅ Заказ создан с продуктом и ожидает оплаты")
                     except Exception as e:
-                        st.warning(f"⚠️ Заказ создан, но не удалось привязать продукт: {e}")
-                
-                st.success("✅ Заказ создан и ожидает оплаты")
-                st.rerun()
-            else:
-                st.error(message)
+                        st.error(f"❌ Не удалось привязать продукт: {e}")
+                    
+                    st.rerun()
+                else:
+                    st.error(message)
 
 
 def render_history_tab(history_df, booking_service, notification_service):

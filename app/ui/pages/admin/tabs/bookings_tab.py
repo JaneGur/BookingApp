@@ -41,7 +41,7 @@ def render_bookings_tab(booking_service):
 
 @st.fragment
 def render_new_booking_form_with_product(client_service, booking_service, form_key_suffix=""):
-    """Форма создания заказа с выбором продукта"""
+    """Форма создания заказа с ОБЯЗАТЕЛЬНЫМ выбором продукта"""
     st.markdown("### ➕ Создание нового заказа")
     
     with st.form(f"new_booking_admin_form_{form_key_suffix}"):
@@ -71,7 +71,7 @@ def render_new_booking_form_with_product(client_service, booking_service, form_k
         booking_notes = st.text_area("Комментарий", height=80, placeholder="Причина обращения...", key=f"booking_notes_{form_key_suffix}")
         
         st.markdown("---")
-        st.markdown("**💳 Продукт**")
+        st.markdown("**💳 Продукт *")  # ДОБАВЛЕНА ЗВЕЗДОЧКА
         
         # Получаем продукты
         prod_map = get_product_map()
@@ -86,27 +86,34 @@ def render_new_booking_form_with_product(client_service, booking_service, form_k
         
         if prod_items:
             prod_labels = [f"{name} — {price} ₽" for _, name, price in prod_items]
-            prod_labels.insert(0, "Без продукта")
+            # УБРАЛИ ОПЦИЮ "Без продукта"
             
             selected_idx = st.selectbox(
-                "Выберите продукт", 
+                "Выберите продукт *", 
                 options=list(range(len(prod_labels))), 
                 format_func=lambda i: prod_labels[i],
-                key=f"select_product_{form_key_suffix}"
+                key=f"select_product_{form_key_suffix}",
+                help="Выбор продукта обязателен"
             )
             
-            if selected_idx > 0:
-                selected_prod_idx = selected_idx - 1
-                selected_prod_id, _, selected_prod_price = prod_items[selected_prod_idx]
+            # Теперь selected_idx начинается с 0 (не с 1)
+            selected_prod_idx = selected_idx
+            selected_prod_id, _, selected_prod_price = prod_items[selected_prod_idx]
         else:
-            st.info("ℹ️ Продукты не настроены")
+            st.error("❌ Продукты не настроены. Создайте хотя бы один продукт в разделе 'Продукты'")
         
         st.markdown("---")
         
         col_submit, col_cancel = st.columns([1, 1])
         
         with col_submit:
-            submit_booking = st.form_submit_button("✅ Создать заказ", use_container_width=True, type="primary")
+            # КНОПКА ЗАБЛОКИРОВАНА ЕСЛИ НЕТ ПРОДУКТОВ
+            submit_booking = st.form_submit_button(
+                "✅ Создать заказ", 
+                use_container_width=True, 
+                type="primary",
+                disabled=(not prod_items)
+            )
         
         with col_cancel:
             cancel_booking = st.form_submit_button("❌ Отмена", use_container_width=True)
@@ -119,8 +126,13 @@ def render_new_booking_form_with_product(client_service, booking_service, form_k
             st.rerun()
         
         if submit_booking:
+            # ВАЛИДАЦИЯ
             if not new_client_name or not new_client_phone:
                 st.error("❌ Заполните имя и телефон клиента")
+            elif not prod_items:
+                st.error("❌ Невозможно создать заказ без продуктов. Создайте продукт в разделе 'Продукты'")
+            elif selected_prod_id is None:
+                st.error("❌ Выбор продукта обязателен")
             else:
                 booking_data = {
                     'client_name': new_client_name,
@@ -137,24 +149,23 @@ def render_new_booking_form_with_product(client_service, booking_service, form_k
                 success, message = booking_service.create_booking(booking_data)
                 
                 if success:
-                    # Сохраняем продукт если выбран
-                    if selected_prod_id is not None:
-                        try:
-                            row = booking_service.get_booking_by_datetime(
-                                new_client_phone, 
-                                str(booking_date), 
-                                booking_time.strftime("%H:%M")
+                    # Сохраняем продукт
+                    try:
+                        row = booking_service.get_booking_by_datetime(
+                            new_client_phone, 
+                            str(booking_date), 
+                            booking_time.strftime("%H:%M")
+                        )
+                        if row:
+                            booking_service.set_booking_payment_info(
+                                row['id'], 
+                                selected_prod_id, 
+                                float(selected_prod_price or 0)
                             )
-                            if row:
-                                booking_service.set_booking_payment_info(
-                                    row['id'], 
-                                    selected_prod_id, 
-                                    float(selected_prod_price or 0)
-                                )
-                        except Exception as e:
-                            st.warning(f"⚠️ Заказ создан, но не удалось привязать продукт: {e}")
+                        st.success("✅ Заказ создан с продуктом и ожидает оплаты")
+                    except Exception as e:
+                        st.error(f"❌ Заказ создан, но не удалось привязать продукт: {e}")
                     
-                    st.success("✅ Заказ создан и ожидает оплаты")
                     if form_key_suffix == "records":
                         st.session_state.show_new_booking_form_records = False
                     elif form_key_suffix == "profile":

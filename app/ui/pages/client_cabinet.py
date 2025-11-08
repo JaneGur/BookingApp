@@ -367,7 +367,7 @@ def render_history_booking_card(booking, booking_service, notification_service):
 
 @st.fragment
 def render_new_booking_fragment(booking_service, client_info, notification_service, switch_tab):
-    """Форма новой записи в едином стиле"""
+    """Форма новой записи с ОБЯЗАТЕЛЬНЫМ продуктом"""
     
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
@@ -394,7 +394,6 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
             switch_tab(0)
         return
     
-    # Форма записи (код из предыдущей версии)
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -428,16 +427,45 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                 st.success(f"✅ {selected_date.strftime('%d.%m.%Y')} в {selected_time}")
                 
                 with st.form("quick_booking_new"):
+                    # ПОЛУЧАЕМ ПРОДУКТЫ
                     try:
                         from core.database import db_manager
                         supabase = db_manager.get_client()
-                        products_all = supabase.table('products').select('id,name,price_rub,is_featured,is_active').eq('is_active', True).order('sort_order').execute().data or []
+                        products_all = supabase.table('products').select('id,name,price_rub,is_featured,is_active')\
+                            .eq('is_active', True).order('sort_order').execute().data or []
                     except Exception:
                         products_all = []
+                    
+                    if not products_all:
+                        st.error("❌ Продукты не настроены. Обратитесь к администратору")
+                        st.stop()
+                    
+                    # ВЫБОР ПРОДУКТА ОБЯЗАТЕЛЕН
+                    st.markdown("**💳 Выберите продукт *")
+                    
                     featured = [p for p in products_all if p.get('is_featured')]
-                    chosen = (featured[0] if featured else (products_all[0] if products_all else None))
-                    if chosen:
-                        st.success(f"💳 Будет оформлен продукт: {chosen.get('name')} — {chosen.get('price_rub')} ₽")
+                    default_idx = 0
+                    if featured:
+                        try:
+                            default_idx = products_all.index(featured[0])
+                        except:
+                            pass
+                    
+                    prod_labels = [f"{p.get('name')} — {p.get('price_rub')} ₽" for p in products_all]
+                    
+                    selected_product_idx = st.selectbox(
+                        "Продукт *",
+                        options=list(range(len(products_all))),
+                        format_func=lambda i: prod_labels[i],
+                        index=default_idx,
+                        help="Выбор продукта обязателен",
+                        key="product_select_client"
+                    )
+                    
+                    chosen = products_all[selected_product_idx]
+                    
+                    st.info(f"💰 К оплате: **{chosen.get('price_rub')} ₽**")
+                    
                     notes = st.text_area("💭 Тема консультации", height=80)
                     submit = st.form_submit_button("✅ Создать заказ", use_container_width=True)
                     render_consent_line()
@@ -460,13 +488,28 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                         
                         success, message = booking_service.create_booking(booking_data)
                         if success:
+                            # ОБЯЗАТЕЛЬНО СОХРАНЯЕМ ПРОДУКТ
+                            try:
+                                row = booking_service.get_booking_by_datetime(
+                                    st.session_state.client_phone,
+                                    str(selected_date),
+                                    selected_time
+                                )
+                                if row:
+                                    booking_service.set_booking_payment_info(
+                                        row['id'],
+                                        chosen.get('id'),
+                                        float(chosen.get('price_rub') or 0)
+                                    )
+                            except Exception as e:
+                                st.warning(f"⚠️ Заказ создан, но возникла проблема с продуктом: {e}")
+                            
                             st.balloons()
                             st.success("✅ Заказ создан!")
                             try:
                                 notification_service.notify_booking_created(booking_data, chat_id)
                             except Exception:
                                 pass
-                            # Переключаемся на главную после успеха
                             import time
                             time.sleep(1)
                             switch_tab(0)

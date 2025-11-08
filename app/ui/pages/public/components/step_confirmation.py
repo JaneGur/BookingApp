@@ -4,7 +4,7 @@ from utils.docs import render_consent_line
 from core.database import db_manager
 
 def render_step_confirmation(booking_service):
-    """Шаг 3: Подтверждение с прокруткой к кнопке"""
+    """Шаг 3: Подтверждение с ОБЯЗАТЕЛЬНЫМ продуктом"""
     st.markdown('<div id="step3-form"></div>', unsafe_allow_html=True)
     st.markdown("""
              <h2 style="color: #225c52; font-size: 1.4rem; font-weight: 600; 
@@ -16,15 +16,26 @@ def render_step_confirmation(booking_service):
     
     form_data = st.session_state.booking_form_data
     
-    # Получаем продукт по умолчанию
+    # Получаем продукты
     try:
         supabase = db_manager.get_client()
-        products_all = supabase.table('products').select('id,name,price_rub,is_featured,is_active').eq('is_active', True).order('sort_order').execute().data or []
+        products_all = supabase.table('products').select('id,name,price_rub,is_featured,is_active')\
+            .eq('is_active', True).order('sort_order').execute().data or []
     except Exception:
         products_all = []
     
+    if not products_all:
+        st.error("❌ Продукты не настроены. Невозможно создать заказ. Обратитесь к администратору")
+        
+        col_back_only = st.columns([1, 1])[0]
+        with col_back_only:
+            if st.button("⬅️ Назад", use_container_width=True, key="step3_back_error"):
+                st.session_state.booking_step = 2
+                st.rerun()
+        st.stop()
+    
     featured = [p for p in products_all if p.get('is_featured')]
-    chosen = (featured[0] if featured else (products_all[0] if products_all else None))
+    chosen = (featured[0] if featured else products_all[0])
     
     # Карточка подтверждения
     st.markdown("""
@@ -55,13 +66,12 @@ def render_step_confirmation(booking_service):
             st.write(f"**Telegram:** {form_data.get('telegram')}")
     
     with col2:
-        if chosen:
-            st.markdown("**💳 Продукт:**")
-            st.success(f"""
-            **{chosen.get('name')}**
-            
-            💰 Стоимость: **{chosen.get('price_rub')} ₽**
-            """)
+        st.markdown("**💳 Продукт:**")
+        st.success(f"""
+        **{chosen.get('name')}**
+        
+        💰 Стоимость: **{chosen.get('price_rub')} ₽**
+        """)
         
         if form_data.get('notes'):
             st.markdown("**💭 Тема консультации:**")
@@ -73,7 +83,7 @@ def render_step_confirmation(booking_service):
     st.markdown("---")
     render_consent_line()
     
-    # Кнопки навигации с якорем
+    # Кнопки навигации
     st.markdown("---")
     st.markdown('<div id="step3-nav"></div>', unsafe_allow_html=True)
     col_nav1, col_nav2 = st.columns([1, 1])
@@ -107,22 +117,22 @@ def render_step_confirmation(booking_service):
                 if success:
                     st.session_state.booking_form_data['booking_created'] = True
                     
-                    if chosen:
-                        try:
-                            row = booking_service.get_booking_by_datetime(
-                                form_data.get('phone'),
-                                str(form_data.get('date')),
-                                form_data.get('time')
+                    # ОБЯЗАТЕЛЬНО СОХРАНЯЕМ ПРОДУКТ
+                    try:
+                        row = booking_service.get_booking_by_datetime(
+                            form_data.get('phone'),
+                            str(form_data.get('date')),
+                            form_data.get('time')
+                        )
+                        if row:
+                            booking_service.set_booking_payment_info(
+                                row['id'], 
+                                chosen.get('id'), 
+                                float(chosen.get('price_rub') or 0)
                             )
-                            if row:
-                                booking_service.set_booking_payment_info(
-                                    row['id'], 
-                                    chosen.get('id'), 
-                                    float(chosen.get('price_rub') or 0)
-                                )
-                                st.session_state.booking_form_data['booking_id'] = row['id']
-                        except Exception:
-                            pass
+                            st.session_state.booking_form_data['booking_id'] = row['id']
+                    except Exception as e:
+                        st.warning(f"⚠️ Заказ создан, но возникла проблема с продуктом: {e}")
                     
                     st.balloons()
                     st.success("✅ Заказ успешно создан!")
