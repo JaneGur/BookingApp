@@ -1,6 +1,3 @@
-# ========== app/ui/pages/client_cabinet.py ==========
-# ИСПРАВЛЕННАЯ ВЕРСИЯ с рабочей навигацией и сохранением производительности
-
 import streamlit as st
 from datetime import datetime, timedelta
 from config.constants import BOOKING_RULES
@@ -17,7 +14,7 @@ from utils.validators import validate_email
 from utils.datetime_helpers import now_msk
 
 def render_client_cabinet():
-    """ОПТИМИЗИРОВАННЫЙ личный кабинет с рабочей навигацией"""
+    """ОПТИМИЗИРОВАННЫЙ личный кабинет в едином стиле с админкой"""
     
     booking_service = BookingService()
     client_service = ClientService()
@@ -26,7 +23,7 @@ def render_client_cabinet():
     profile = client_service.get_profile(st.session_state.client_phone)
     client_info = profile or client_service.get_client_info(st.session_state.client_phone)
     
-    # Единый стиль заголовка
+    # Единый стиль заголовка как в админке
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%); 
          padding: 2rem 2.5rem; border-radius: 16px; margin-bottom: 2rem;
@@ -42,36 +39,44 @@ def render_client_cabinet():
     </div>
     """, unsafe_allow_html=True)
 
-    # ИНИЦИАЛИЗАЦИЯ АКТИВНОЙ ВКЛАДКИ
-    if "client_active_tab" not in st.session_state:
-        st.session_state.client_active_tab = 0
+    # ===== НАВИГАЦИЯ В СТИЛЕ АДМИНКИ (табы) =====
+    if "client_nav_index" not in st.session_state:
+        st.session_state.client_nav_index = 0
     
-    # СОЗДАЕМ ТАБЫ
+    # Определяем активную вкладку
     tab_names = ["🏠 Главная", "📅 Новая запись", "📊 История", "👤 Профиль", "💬 Уведомления"]
+    
+    # Создаем функцию для переключения вкладки
+    def switch_tab(index: int):
+        st.session_state.client_nav_index = index
+        st.rerun()
+    
+    # Создаем табы
     tabs = st.tabs(tab_names)
     
-    # РЕНДЕРИМ СОДЕРЖИМОЕ ВКЛАДОК
+    # Роутинг по табам
     with tabs[0]:
-        render_dashboard_enhanced(booking_service, client_service, notification_service, client_info)
+        render_dashboard_enhanced(booking_service, client_service, notification_service, client_info, switch_tab)
     
     with tabs[1]:
-        render_new_booking_fragment(booking_service, client_info, notification_service)
+        render_new_booking_fragment(booking_service, client_info, notification_service, switch_tab)
     
     with tabs[2]:
-        render_all_bookings_fragment(booking_service, notification_service)
+        render_all_bookings_fragment(booking_service, notification_service, switch_tab)
     
     with tabs[3]:
-        render_profile_fragment(client_service, client_info)
+        render_profile_fragment(client_service, client_info, switch_tab)
     
     with tabs[4]:
         render_telegram_section()
 
 
-# ========== ГЛАВНАЯ СТРАНИЦА С РАБОЧИМИ КНОПКАМИ ==========
+# ========== РАСШИРЕННАЯ ГЛАВНАЯ СТРАНИЦА ==========
 
-def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info):
-    """УЛУЧШЕННЫЙ дашборд с РАБОЧИМИ кнопками"""
+def render_dashboard_enhanced(booking_service, client_service, notification_service, client_info, switch_tab):
+    """УЛУЧШЕННЫЙ дашборд в едином стиле"""
     
+    # Заголовок в стиле админки
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
          margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
@@ -100,7 +105,7 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
 
     st.markdown("---")
 
-    # ===== ТЕКУЩАЯ КОНСУЛЬТАЦИЯ =====
+    # ===== ТЕКУЩАЯ КОНСУЛЬТАЦИЯ (подтверждённая) =====
     if upcoming:
         st.markdown("### 🕐 Ближайшая консультация")
         render_booking_card_detailed(upcoming, booking_service, notification_service, show_cancel=True)
@@ -118,74 +123,30 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
 
     st.markdown("---")
 
-    # ===== БЫСТРЫЕ ДЕЙСТВИЯ С РАБОЧИМИ КНОПКАМИ =====
+    # ===== БЫСТРЫЕ ДЕЙСТВИЯ =====
     st.markdown("### ⚡ Быстрые действия")
     
     col_a1, col_a2, col_a3 = st.columns(3)
     
     with col_a1:
-        # ИСПРАВЛЕНО: используем unique key и st.rerun вместо switch_tab
-        if st.button("📅 Записаться", type="primary", use_container_width=True, 
-                     key="dash_new_booking_action",
-                     help="Перейти к записи на консультацию"):
-            # Программное переключение вкладки через JS
-            st.markdown("""
-            <script>
-            // Находим вкладку "Новая запись" (индекс 1) и кликаем по ней
-            const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-            if (tabs && tabs[1]) {
-                tabs[1].click();
-            }
-            </script>
-            """, unsafe_allow_html=True)
-            # Дополнительно устанавливаем флаг для fallback
-            st.session_state.force_tab_switch = 1
-            st.rerun()
+        if st.button("📅 Записаться", type="primary", use_container_width=True, key="dash_new_booking",
+                  help="Перейти к записи на консультацию"):
+            switch_tab(1)
     
     with col_a2:
-        if st.button("📊 История", use_container_width=True, 
-                     key="dash_history_action",
-                     help="Посмотреть все записи"):
-            st.markdown("""
-            <script>
-            const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-            if (tabs && tabs[2]) {
-                tabs[2].click();
-            }
-            </script>
-            """, unsafe_allow_html=True)
-            st.session_state.force_tab_switch = 2
-            st.rerun()
+        if st.button("📊 История", use_container_width=True, key="dash_history",
+                  help="Посмотреть все записи"):
+            switch_tab(2)
     
     with col_a3:
         if not telegram_connected:
-            if st.button("🔔 Уведомления", use_container_width=True, 
-                        key="dash_telegram_action",
-                        help="Подключить Telegram"):
-                st.markdown("""
-                <script>
-                const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs && tabs[4]) {
-                    tabs[4].click();
-                }
-                </script>
-                """, unsafe_allow_html=True)
-                st.session_state.force_tab_switch = 4
-                st.rerun()
+            if st.button("🔔 Уведомления", use_container_width=True, key="dash_telegram",
+                      help="Подключить Telegram"):
+                switch_tab(4)
         else:
-            if st.button("👤 Профиль", use_container_width=True, 
-                        key="dash_profile_action",
-                        help="Редактировать профиль"):
-                st.markdown("""
-                <script>
-                const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs && tabs[3]) {
-                    tabs[3].click();
-                }
-                </script>
-                """, unsafe_allow_html=True)
-                st.session_state.force_tab_switch = 3
-                st.rerun()
+            if st.button("👤 Профиль", use_container_width=True, key="dash_profile",
+                      help="Редактировать профиль"):
+                switch_tab(3)
 
     # ===== ПРЕДУПРЕЖДЕНИЯ =====
     if upcoming and not telegram_connected:
@@ -196,26 +157,18 @@ def render_dashboard_enhanced(booking_service, client_service, notification_serv
         📌 Вы будете получать напоминания и подтверждения
         """)
         
-        if st.button("Подключить Telegram", type="secondary", 
-                    key="dash_connect_tg_warning", use_container_width=True):
-            st.markdown("""
-            <script>
-            const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-            if (tabs && tabs[4]) {
-                tabs[4].click();
-            }
-            </script>
-            """, unsafe_allow_html=True)
-            st.session_state.force_tab_switch = 4
-            st.rerun()
+        if st.button("Подключить Telegram", type="secondary", key="dash_connect_tg", use_container_width=True):
+            switch_tab(4)
 
 
 def render_booking_card_detailed(booking: dict, booking_service, notification_service, 
                                   show_cancel: bool = False, show_payment: bool = False):
-    """Детальная карточка консультации (БЕЗ ИЗМЕНЕНИЙ)"""
+    """Детальная карточка консультации с действиями"""
     
+    # Информация о времени
     time_until = calculate_time_until(booking['booking_date'], booking['booking_time'])
     
+    # Информация о продукте
     prod_line = ""
     try:
         pid = booking.get('product_id')
@@ -228,10 +181,12 @@ def render_booking_card_detailed(booking: dict, booking_service, notification_se
     except Exception:
         pass
     
+    # Статус
     from config.constants import STATUS_DISPLAY
     status_info = STATUS_DISPLAY.get(booking.get('status', 'confirmed'), STATUS_DISPLAY['confirmed'])
     status_badge = f"<span style='background: {status_info['bg_color']}; color: {status_info['color']}; padding: 4px 12px; border-radius: 12px; font-size: 0.9rem;'>{status_info['emoji']} {status_info['text']}</span>"
     
+    # Основная карточка
     st.markdown(f"""
     <div style="background: rgba(255, 255, 255, 0.95); padding: 1.5rem; border-radius: 16px; 
          border: 1px solid rgba(136, 200, 188, 0.25); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -250,14 +205,17 @@ def render_booking_card_detailed(booking: dict, booking_service, notification_se
     </div>
     """, unsafe_allow_html=True)
     
+    # Действия
     col_act1, col_act2 = st.columns(2)
     
     with col_act1:
+        # Кнопка оплаты
         if show_payment:
             if st.button("💳 Перейти к оплате", type="primary", use_container_width=True, key="pay_from_dash"):
                 st.info("💳 Оплата будет подключена позже")
     
     with col_act2:
+        # Кнопка отмены
         if show_cancel and time_until.total_seconds() > BOOKING_RULES["MIN_CANCEL_MINUTES"] * 60:
             if st.button("❌ Отменить консультацию", type="secondary", use_container_width=True, key="cancel_from_dash"):
                 with st.spinner("Отмена записи..."):
@@ -277,11 +235,11 @@ def render_booking_card_detailed(booking: dict, booking_service, notification_se
             st.caption(f"⚠️ Отмена возможна за {BOOKING_RULES['MIN_CANCEL_MINUTES']}+ минут")
 
 
-# ========== ОСТАЛЬНЫЕ ФРАГМЕНТЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ ==========
+# ========== РАСШИРЕННАЯ ИСТОРИЯ (все записи с управлением) ==========
 
 @st.fragment
-def render_all_bookings_fragment(booking_service, notification_service):
-    """Полная история записей (БЕЗ ИЗМЕНЕНИЙ)"""
+def render_all_bookings_fragment(booking_service, notification_service, switch_tab):
+    """Полная история записей"""
     
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
@@ -291,13 +249,16 @@ def render_all_bookings_fragment(booking_service, notification_service):
     </h3>
     """, unsafe_allow_html=True)
     
+    # Получаем все записи
     all_bookings = booking_service.get_client_bookings(st.session_state.client_phone)
     
     if all_bookings.empty:
         st.info("📭 История записей пуста")
-        # УБРАЛИ switch_tab - кнопка теперь просто информативная
+        if st.button("📅 Создать первую запись", type="primary", use_container_width=True):
+            switch_tab(1)
         return
     
+    # Фильтры в одну строку
     col_f1, col_f2 = st.columns([3, 1])
     
     with col_f1:
@@ -322,13 +283,16 @@ def render_all_bookings_fragment(booking_service, notification_service):
             key="history_sort"
         )
     
+    # Применяем фильтры
     filtered = all_bookings[all_bookings['status'].isin(filter_status)]
     
     if sort_order == 'asc':
         filtered = filtered.sort_values(['booking_date', 'booking_time'], ascending=True)
     
+    # Статистика
     st.info(f"📊 Найдено записей: {len(filtered)}")
     
+    # Отображение записей
     st.markdown("---")
     
     for idx, row in filtered.iterrows():
@@ -336,16 +300,18 @@ def render_all_bookings_fragment(booking_service, notification_service):
 
 
 def render_history_booking_card(booking, booking_service, notification_service):
-    """Карточка записи в истории (БЕЗ ИЗМЕНЕНИЙ)"""
+    """Карточка записи в истории"""
     from config.constants import STATUS_DISPLAY
     
     status_info = STATUS_DISPLAY.get(booking['status'], STATUS_DISPLAY['confirmed'])
     date_formatted = format_date(booking['booking_date'])
     
+    # Проверяем, можно ли отменить
     time_until = calculate_time_until(booking['booking_date'], booking['booking_time'])
     can_cancel = (booking['status'] in ['confirmed', 'pending_payment'] and 
                   time_until.total_seconds() > BOOKING_RULES["MIN_CANCEL_MINUTES"] * 60)
     
+    # Продукт
     prod_html = ""
     try:
         pid = booking.get('product_id') if hasattr(booking, 'get') else (booking['product_id'] if 'product_id' in booking else None)
@@ -357,6 +323,7 @@ def render_history_booking_card(booking, booking_service, notification_service):
         pass
     
     with st.container():
+        # Основная информация
         col_info, col_action = st.columns([4, 1])
         
         with col_info:
@@ -375,6 +342,7 @@ def render_history_booking_card(booking, booking_service, notification_service):
             """, unsafe_allow_html=True)
         
         with col_action:
+            # Действия
             if can_cancel:
                 if st.button("❌", key=f"cancel_hist_{booking['id']}", help="Отменить запись", use_container_width=True):
                     with st.spinner("Отмена..."):
@@ -395,9 +363,11 @@ def render_history_booking_card(booking, booking_service, notification_service):
                     st.info("💳 Оплата будет подключена позже")
 
 
+# ========== ОСТАЛЬНЫЕ ФРАГМЕНТЫ БЕЗ ИЗМЕНЕНИЙ ==========
+
 @st.fragment
-def render_new_booking_fragment(booking_service, client_info, notification_service):
-    """Форма новой записи (БЕЗ ИЗМЕНЕНИЙ)"""
+def render_new_booking_fragment(booking_service, client_info, notification_service, switch_tab):
+    """Форма новой записи с ОБЯЗАТЕЛЬНЫМ продуктом"""
     
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
@@ -414,12 +384,14 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
     
     if pending:
         st.warning("🟡 У вас уже создан заказ, ожидающий оплаты")
-        # УБРАЛИ switch_tab
+        if st.button("Вернуться на главную", type="primary", use_container_width=True):
+            switch_tab(0)
         return
     
     if booking_service.has_active_booking(st.session_state.client_phone):
         st.warning("⚠️ У вас уже есть активная запись")
-        # УБРАЛИ switch_tab
+        if st.button("Посмотреть на главной", type="primary", use_container_width=True):
+            switch_tab(0)
         return
     
     col1, col2 = st.columns([2, 1])
@@ -455,6 +427,7 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                 st.success(f"✅ {selected_date.strftime('%d.%m.%Y')} в {selected_time}")
                 
                 with st.form("quick_booking_new"):
+                    # ПОЛУЧАЕМ ПРОДУКТЫ
                     try:
                         from core.database import db_manager
                         supabase = db_manager.get_client()
@@ -467,6 +440,7 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                         st.error("❌ Продукты не настроены. Обратитесь к администратору")
                         st.stop()
                     
+                    # ВЫБОР ПРОДУКТА ОБЯЗАТЕЛЕН
                     st.markdown("**💳 Выберите продукт *")
                     
                     featured = [p for p in products_all if p.get('is_featured')]
@@ -514,6 +488,7 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                         
                         success, message = booking_service.create_booking(booking_data)
                         if success:
+                            # ОБЯЗАТЕЛЬНО СОХРАНЯЕМ ПРОДУКТ
                             try:
                                 row = booking_service.get_booking_by_datetime(
                                     st.session_state.client_phone,
@@ -537,24 +512,14 @@ def render_new_booking_fragment(booking_service, client_info, notification_servi
                                 pass
                             import time
                             time.sleep(1)
-                            # ПЕРЕКЛЮЧАЕМСЯ НА ГЛАВНУЮ
-                            st.markdown("""
-                            <script>
-                            const tabs = parent.document.querySelectorAll('[data-baseweb="tab"]');
-                            if (tabs && tabs[0]) {
-                                tabs[0].click();
-                            }
-                            </script>
-                            """, unsafe_allow_html=True)
-                            st.session_state.force_tab_switch = 0
-                            st.rerun()
+                            switch_tab(0)
                         else:
                             st.error(message)
 
 
 @st.fragment
-def render_profile_fragment(client_service, client_info):
-    """Профиль (БЕЗ ИЗМЕНЕНИЙ)"""
+def render_profile_fragment(client_service, client_info, switch_tab):
+    """Профиль в едином стиле"""
     
     st.markdown("""
     <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
@@ -591,6 +556,7 @@ def render_profile_fragment(client_service, client_info):
         render_consent_line()
         
         if save_profile:
+            # Валидация
             if not new_name:
                 st.error("❌ Имя обязательно для заполнения")
                 return
@@ -601,6 +567,7 @@ def render_profile_fragment(client_service, client_info):
                     st.error(email_msg)
                     return
             
+            # Обработка смены пароля
             password_changed = False
             if current_password or new_password or confirm_new_password:
                 if not all([current_password, new_password, confirm_new_password]):
@@ -628,6 +595,7 @@ def render_profile_fragment(client_service, client_info):
                     st.error("❌ Ошибка смены пароля")
                     return
             
+            # Обновление профиля
             if client_service.upsert_profile(
                 st.session_state.client_phone,
                 new_name,
@@ -647,167 +615,36 @@ def render_profile_fragment(client_service, client_info):
             else:
                 st.error("❌ Ошибка обновления профиля")
 
-
-# ========== АЛЬТЕРНАТИВНЫЙ ПОДХОД: УПРАВЛЕНИЕ ТАБАМИ ЧЕРЕЗ SESSION STATE ==========
-# Если JS-подход не работает, используйте этот метод
-
-def render_client_cabinet_alternative():
-    """АЛЬТЕРНАТИВНАЯ версия с управлением табами через session_state"""
+# @st.fragment
+# def render_booking_history_fragment(booking_service):
+#     """История записей - изолированный фрагмент"""
+#     st.markdown("### 📊 История записей")
     
-    booking_service = BookingService()
-    client_service = ClientService()
-    notification_service = NotificationService()
+#     bookings = booking_service.get_client_bookings(st.session_state.client_phone)
     
-    profile = client_service.get_profile(st.session_state.client_phone)
-    client_info = profile or client_service.get_client_info(st.session_state.client_phone)
-    
-    # Заголовок
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #88c8bc 0%, #6ba292 100%); 
-         padding: 2rem 2.5rem; border-radius: 16px; margin-bottom: 2rem;
-         box-shadow: 0 4px 20px rgba(136, 200, 188, 0.25);">
-        <h1 style="color: white; font-size: 1.75rem; font-weight: 700; margin: 0; 
-             letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.75rem;">
-            <span style="font-size: 2rem;">👤</span>
-            Личный кабинет
-        </h1>
-        <p style="color: rgba(255, 255, 255, 0.9); margin: 0.5rem 0 0 0; font-size: 1rem;">
-            Здравствуйте, {st.session_state.client_name}
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ИНИЦИАЛИЗАЦИЯ
-    if "client_active_tab_index" not in st.session_state:
-        st.session_state.client_active_tab_index = 0
-    
-    # Применяем force_tab_switch если есть
-    if "force_tab_switch" in st.session_state:
-        st.session_state.client_active_tab_index = st.session_state.force_tab_switch
-        del st.session_state.force_tab_switch
-    
-    # СОЗДАЕМ РАДИО-НАВИГАЦИЮ (более надежна чем tabs)
-    tab_options = {
-        0: "🏠 Главная",
-        1: "📅 Новая запись",
-        2: "📊 История",
-        3: "👤 Профиль",
-        4: "💬 Уведомления"
-    }
-    
-    selected_tab = st.radio(
-        "Навигация",
-        options=list(tab_options.keys()),
-        format_func=lambda x: tab_options[x],
-        horizontal=True,
-        key="client_tab_radio",
-        index=st.session_state.client_active_tab_index,
-        label_visibility="collapsed"
-    )
-    
-    # Обновляем состояние
-    if selected_tab != st.session_state.client_active_tab_index:
-        st.session_state.client_active_tab_index = selected_tab
-    
-    st.markdown("---")
-    
-    # РЕНДЕРИМ КОНТЕНТ В ЗАВИСИМОСТИ ОТ ВЫБРАННОЙ ВКЛАДКИ
-    if selected_tab == 0:
-        render_dashboard_simple(booking_service, client_service, notification_service, client_info)
-    elif selected_tab == 1:
-        render_new_booking_fragment(booking_service, client_info, notification_service)
-    elif selected_tab == 2:
-        render_all_bookings_fragment(booking_service, notification_service)
-    elif selected_tab == 3:
-        render_profile_fragment(client_service, client_info)
-    elif selected_tab == 4:
-        render_telegram_section()
-
-
-def render_dashboard_simple(booking_service, client_service, notification_service, client_info):
-    """Упрощенный дашборд с РАБОЧИМИ кнопками через session_state"""
-    
-    st.markdown("""
-    <h3 style="color: #225c52; font-size: 1.25rem; font-weight: 600; 
-         margin-bottom: 1.25rem; padding-bottom: 0.75rem; 
-         border-bottom: 2px solid rgba(136, 200, 188, 0.2);">
-        🏠 Главная
-    </h3>
-    """, unsafe_allow_html=True)
-    
-    # Получаем данные
-    upcoming = booking_service.get_upcoming_client_booking(st.session_state.client_phone)
-    pending = booking_service.get_latest_pending_booking_for_client(st.session_state.client_phone)
-    all_bookings = booking_service.get_client_bookings(st.session_state.client_phone)
-    
-    total = len(all_bookings) if hasattr(all_bookings, "__len__") else (all_bookings.shape[0] if hasattr(all_bookings, "shape") else 0)
-    telegram_connected = bool(notification_service.get_client_telegram_chat_id(st.session_state.client_phone))
-    
-    # Статистика
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric(label="📅 Предстоящих", value=(1 if upcoming else 0))
-    with c2:
-        st.metric(label="📊 Всего записей", value=total)
-    with c3:
-        status = "🔔 Подключен" if telegram_connected else "🔕 Не подключен"
-        st.metric(label="Telegram", value=status)
-
-    st.markdown("---")
-
-    # Консультации
-    if upcoming:
-        st.markdown("### 🕐 Ближайшая консультация")
-        render_booking_card_detailed(upcoming, booking_service, notification_service, show_cancel=True)
-    elif pending:
-        st.markdown("### 🟡 Заказ в ожидании оплаты")
-        st.warning("После оплаты запись появится выше как подтверждённая консультация")
-        render_booking_card_detailed(pending, booking_service, notification_service, show_cancel=False, show_payment=True)
-    else:
-        st.info("📭 У вас нет предстоящих консультаций")
-        st.markdown("Запишитесь на новую консультацию, используя кнопку ниже")
-
-    st.markdown("---")
-
-    # БЫСТРЫЕ ДЕЙСТВИЯ - РАБОЧИЕ КНОПКИ
-    st.markdown("### ⚡ Быстрые действия")
-    
-    col_a1, col_a2, col_a3 = st.columns(3)
-    
-    with col_a1:
-        if st.button("📅 Записаться", type="primary", use_container_width=True, 
-                     key="dash_new_booking_simple"):
-            st.session_state.client_active_tab_index = 1
-            st.rerun()
-    
-    with col_a2:
-        if st.button("📊 История", use_container_width=True, 
-                     key="dash_history_simple"):
-            st.session_state.client_active_tab_index = 2
-            st.rerun()
-    
-    with col_a3:
-        if not telegram_connected:
-            if st.button("🔔 Уведомления", use_container_width=True, 
-                        key="dash_telegram_simple"):
-                st.session_state.client_active_tab_index = 4
-                st.rerun()
-        else:
-            if st.button("👤 Профиль", use_container_width=True, 
-                        key="dash_profile_simple"):
-                st.session_state.client_active_tab_index = 3
-                st.rerun()
-
-    # Предупреждения
-    if upcoming and not telegram_connected:
-        st.markdown("---")
-        st.warning("""
-        ⚠️ **Рекомендация:** Подключите Telegram-уведомления
-        
-        📌 Вы будете получать напоминания и подтверждения
-        """)
-        
-        if st.button("Подключить Telegram", type="secondary", 
-                    key="dash_connect_tg_simple", use_container_width=True):
-            st.session_state.client_active_tab_index = 4
-            st.rerun()
+#     if not bookings.empty:
+#         for idx, row in bookings.iterrows():
+#             from config.constants import STATUS_DISPLAY
+#             status_info = STATUS_DISPLAY.get(row['status'], STATUS_DISPLAY['confirmed'])
+#             date_formatted = format_date(row['booking_date'])
+#             prod_html = ""
+#             try:
+#                 pid = row.get('product_id') if hasattr(row, 'get') else (row['product_id'] if 'product_id' in row else None)
+#                 amt = row.get('amount') if hasattr(row, 'get') else (row['amount'] if 'amount' in row else None)
+#                 if pid is not None:
+#                     pname = get_product_map().get(pid, {}).get('name') or f"ID {pid}"
+#                     prod_html = f"<p><strong>💳 Продукт:</strong> {pname}{(' — ' + str(amt) + ' ₽') if amt is not None else ''}</p>"
+#                 else:
+#                     prod_html = "<p><strong>💳 Продукт:</strong> Не выбран</p>"
+#             except Exception:
+#                 pass
+#             st.markdown(f"""
+#             <div class="booking-card">
+#                 <h4>{status_info['emoji']} {date_formatted} в {row['booking_time']}</h4>
+#                 <p><strong>Статус:</strong> <span style="color: {status_info['color']}">{status_info['text']}</span></p>
+#                 {prod_html}
+#                 {f"<p><strong>💭</strong> {row['notes']}</p>" if row['notes'] else ""}
+#             </div>
+#             """, unsafe_allow_html=True)
+#     else:
+#         st.info("📭 История пуста")
